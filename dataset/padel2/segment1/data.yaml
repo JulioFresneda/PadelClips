@@ -1,0 +1,9 @@
+train: "../dataset/padel2/segment1/images/train/"
+val:  "../dataset/padel2/segment1/images/val/"
+test: "../dataset/padel2/segment1/images/test/"
+
+# number of classes
+nc: 2
+
+# class names
+names: ["ball","player"]
