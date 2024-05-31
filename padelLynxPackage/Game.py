@@ -11,17 +11,21 @@ import matplotlib.pyplot as plt
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler
 
-from padelLynxPackage.Elements import Object, Frame
+from padelLynxPackage.Frame import Object, Frame, Label
 from padelLynxPackage.Player import *
 import random
+
+from padelLynxPackage.PositionTracker import PositionTracker
+
 
 class Game:
     def __init__(self, frames, fps):
         self.frames = frames
         self.fps = int(fps)
+        self.track_ball()
         self.players = self.initialize_players()
         self.tag_players()
-        print(self.players)
+
 
     def __str__(self):
         print("Game: " + str(len(self.frames)) + " frames")
@@ -29,6 +33,9 @@ class Game:
     def __repr__(self):  # This makes it easier to see the result when printing the list
         return f"Game({str(len(self.frames))})"
 
+
+    def track_ball(self):
+        self.position_tracker = PositionTracker(self.frames, Label.BALL)
 
     def tag_players(self):
         for i, frame in enumerate(self.frames):

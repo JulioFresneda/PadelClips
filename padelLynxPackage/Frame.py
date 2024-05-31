@@ -20,6 +20,8 @@ class Object:
         self.size = width*height
         self.conf = conf
 
+
+
     def set_tag(self, tag):
         self.tag = tag
 
@@ -42,6 +44,10 @@ class Frame:
     def players(self):
         return [obj for obj in self.objects if obj.class_label == 1]
 
+    def balls(self):
+        return [obj for obj in self.objects if obj.class_label == 0]
+
+
 
     @staticmethod
     def load_frames(frames_path, yolo_path):
@@ -54,7 +60,7 @@ class Frame:
             # Check if the file ends with .jpg
             if filename.endswith(".jpg"):
                 # Construct the new filename with .txt extension
-                new_filename = "segment_" + filename[:-4] + ".txt"
+                new_filename = "segment2_" + filename[:-4] + ".txt"
                 # You can now use this new filename to create a text file or rename, etc.
                 # For demonstration, let's just print the new filename
                 frames.append(os.path.join(frames_path, filename))

@@ -17,9 +17,9 @@ model = YOLO("/home/juliofgx/PycharmProjects/padelLynx/runs/detect/train8/weight
 # Run inference on the source
 #results = model(source, stream=False, imgsz=1920, save=True, line_width=4)
 
-source = "/home/juliofgx/PycharmProjects/padelLynx/dataset/seg1/segment.mp4"
+source = "/home/juliofgx/PycharmProjects/padelLynx/dataset/seg2/segment2.mp4"
 
 # Run inference on the source
-results = model(source, stream=True, imgsz=1920, save=True, save_frames=True, show_conf=False, show_labels=False, line_width=0, save_txt = True, save_conf = True, vid_stride = 10)
+results = model(source, stream=True, imgsz=1920, save=True, save_frames=True, show_conf=False, show_labels=False, line_width=0, save_txt = True, save_conf = True)
 for r in results:
     next(results)
