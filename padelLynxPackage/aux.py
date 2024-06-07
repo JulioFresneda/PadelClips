@@ -36,10 +36,11 @@ def video_to_frames(video_path, output_folder, limit = None, steps = 10, real_co
             name = frame_count
         else:
             name = exported_count
-        frame_filename = os.path.join(output_folder, f"{name+1}.jpg")
-        #if (frame_count % steps == 0):
-        cv2.imwrite(frame_filename, frame)
-        exported_count += 1
+        #frame_filename = os.path.join(output_folder, f"frame_{frame_count:06}.jpg")
+        frame_filename = os.path.join(output_folder, f"{frame_count+1}.jpg")
+        if (frame_count % steps == 0):
+            cv2.imwrite(frame_filename, frame)
+            exported_count += 1
         if (frame_count % 100 == 0):
             print("Frame " + str(frame_count), end= '\r')
         frame_count += 1

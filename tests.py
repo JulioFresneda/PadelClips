@@ -2,10 +2,12 @@ from padelLynxPackage.aux import *
 from padelLynxPackage.Frame import Frame
 
 
-#video_to_frames("dataset/seg2/segment2.mp4", "dataset/seg2/segment_frames")
+#split_train_test_valid("dataset/padel5/train_2_ball/train")
 
-frames = Frame.load_frames("/home/juliofgx/PycharmProjects/padelLynx/dataset/seg2/segment_frames", "/home/juliofgx/PycharmProjects/padelLynx/dataset/seg2/labels")
-fps = get_video_fps("/home/juliofgx/PycharmProjects/padelLynx/dataset/seg2/segment2.mp4")
+#video_to_frames("dataset/padel5/padel5_segment2.mp4", "dataset/padel5/predicted_2/images", steps=1)
+
+frames = Frame.load_frames("/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/predicted_2/images", "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/predicted_2/labels")
+fps = get_video_fps("/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_segment2.mp4")
 # print(fps)
 game = Game(frames, fps)
 print(game)

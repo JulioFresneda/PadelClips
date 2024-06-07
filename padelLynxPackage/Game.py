@@ -24,7 +24,7 @@ class Game:
         self.fps = int(fps)
         self.track_ball()
         self.players = self.initialize_players()
-        self.tag_players()
+        #self.tag_players()
 
 
     def __str__(self):
@@ -35,7 +35,7 @@ class Game:
 
 
     def track_ball(self):
-        self.position_tracker = PositionTracker(self.frames, Label.BALL)
+        self.position_tracker = PositionTracker(self.frames, self.fps, Label.BALL)
 
     def tag_players(self):
         for i, frame in enumerate(self.frames):

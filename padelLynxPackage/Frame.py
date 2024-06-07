@@ -60,7 +60,7 @@ class Frame:
             # Check if the file ends with .jpg
             if filename.endswith(".jpg"):
                 # Construct the new filename with .txt extension
-                new_filename = "segment2_" + filename[:-4] + ".txt"
+                new_filename = "padel5_segment2_" + filename[:-4] + ".txt"
                 # You can now use this new filename to create a text file or rename, etc.
                 # For demonstration, let's just print the new filename
                 frames.append(os.path.join(frames_path, filename))
@@ -76,7 +76,9 @@ class Frame:
         frames_loaded = []
 
         for frame, fnumber, yolo_info in zip(frames, frames_n, yolo):
+
             frames_loaded.append(Frame(fnumber, frame, Frame.read_yolo_txt(yolo_info)))
+
 
         frames_loaded = sorted(frames_loaded, key=lambda x: x.frame_number)
 
@@ -96,19 +98,21 @@ class Frame:
             List[Tuple[int, float, float, float, float]]: List of detections.
         """
         detections = []
+        try:
 
-        with open(file_path, 'r') as file:
-            for line in file:
-                parts = line.strip().split()
-                class_label = int(parts[0])
-                x_center = float(parts[1])
-                y_center = float(parts[2])
-                width = float(parts[3])
-                height = float(parts[4])
-                conf = float(parts[5])
-                if conf > 0.5:
-                    detections.append(Object(class_label, x_center, y_center, width, height, conf))
-
+            with open(file_path, 'r') as file:
+                for line in file:
+                    parts = line.strip().split()
+                    class_label = int(parts[0])
+                    x_center = float(parts[1])
+                    y_center = float(parts[2])
+                    width = float(parts[3])
+                    height = float(parts[4])
+                    conf = float(parts[5])
+                    if conf > 0.5:
+                        detections.append(Object(class_label, x_center, y_center, width, height, conf))
+        except:
+            pass
         return detections
 
 
