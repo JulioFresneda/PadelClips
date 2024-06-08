@@ -1,6 +1,6 @@
 import math
 import matplotlib.pyplot as plt
-
+import matplotlib
 from padelLynxPackage.Frame import *
 
 
@@ -22,7 +22,7 @@ class PositionInFrame:
         return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 
     @staticmethod
-    def calculate_variance(objects, only_vertical = True):
+    def calculate_variance(objects, only_vertical=True):
         distances = []
         n = len(objects)
         for i in range(n):
@@ -51,19 +51,16 @@ class Track:
     def __init__(self):
         self.track = []
         self.static = True
+        self.globe = False
         self.variance_to_dynamic = 0.000005
         self.variance_distance = 5
-
-
 
     def get_distance_tracked(self):
         dist = 0.0
         for i, pif in enumerate(self.track):
             if i > 0:
-                dist += PositionInFrame.distance_to(self.track[i-1], pif)
+                dist += PositionInFrame.distance_to(self.track[i - 1], pif)
         return dist
-
-
 
     def purge_static_subtracks(self):
         if len(self.track) > self.variance_distance:
@@ -106,19 +103,17 @@ class Track:
 
     def check_static(self):
         if len(self.track) > 1:
-            #if len(self.track) < self.variance_distance:
+            # if len(self.track) < self.variance_distance:
             variance = PositionInFrame.calculate_variance(self.track)
             if variance > self.variance_to_dynamic:
                 self.static = False
 
-            #else:
+            # else:
             #    subtracks = [self.track[i:i + self.variance_distance] for i in range(0, len(self.track)-self.variance_distance)]
             #    for subtrack in subtracks:
             #        variance = PositionInFrame.calculate_variance(subtrack)
             #        if variance > self.variance_to_dynamic:
             #            self.static = False
-
-
 
     def last_frame(self):
         if len(self.track) == 0:
@@ -160,22 +155,127 @@ class PositionTracker:
         self.frames = frames
         if class_name == Label.BALL:
             for i, frame in enumerate(self.frames):
-                print("Tracking balls from frame " + str(i) + "/" + str(len(self.frames)), end='\r')
+                if i % 100 == 0:
+                    print("Tracking balls from frame " + str(i) + "/" + str(len(self.frames)), end='\r')
                 self.track_ball(frame)
                 self.close_tracks(frame.frame_number, tolerance=20)
 
-            self.clean_tracks(self.closed_tracks)
+            clean = self.clean_tracks(self.closed_tracks)
+            self.closed_tracks = clean
 
-            #self.plot_tracks([track for track in self.closed_tracks if track.static is False])
-            self.plot_tracks(self.closed_tracks)
+            tracks_with_globe = self.detect_globes(self.closed_tracks)
+            self.closed_tracks = tracks_with_globe
+
+            # self.plot_tracks([track for track in self.closed_tracks if track.static is False])
+            self.plot_tracks(self.closed_tracks, frame_start=7423-1000, frame_end=7423+1000)
+
+    def detect_globes(self, tracks):
+        starts_index = []
+        end_index = []
+        for i, track in enumerate(tracks):
+            if self.is_start_globe(track):
+                starts_index.append(i)
+            if self.is_end_globe(track):
+                end_index.append(i)
+
+        pairs = []
+        for e in end_index:
+            closest = -1
+            for s in starts_index:
+                if s > closest and s < e:
+                    closest = s
+            if closest != -1:
+                pairs.append((closest, e))
+                for s in starts_index.copy():
+                    if s < e:
+                        starts_index.remove(s)
+
+        new_tracks = tracks.copy()
+        for pair in pairs:
+            globe = Track()
+            globe.globe = True
+            globe.track = tracks[pair[0]].track + tracks[pair[1]].track
+            try:
+                index = new_tracks.index(tracks[pair[0]])
+            except:
+                print(pairs)
+                print(pair)
+                print(tracks[pair[0]].track[0].frame_number)
+            new_tracks.remove(tracks[pair[0]])
+            new_tracks.insert(index, globe)
+            new_tracks.remove(tracks[pair[1]])
+
+        return new_tracks
+
+    def is_start_globe(self, track: Track, min=3, high=0.1):
+        if len(track.track) >= min and track.track[-1].y < high:
+            start_globe = track.track[-min:]
+            is_globe = True
+            last_y = 1.1
+            for sg in start_globe:
+                if sg.y < last_y:
+                    last_y = sg.y
+                else:
+                    is_globe = False
+            return is_globe
+        return False
+
+    def is_end_globe(self, track: Track, min=3, high=0.2):
+        if len(track.track) >= min and track.track[0].y < high:
+            end_globe = track.track[:min]
+            is_globe = True
+            last_y = 0.0
+            for eg in end_globe:
+                if eg.y > last_y:
+                    last_y = eg.y
+                else:
+                    is_globe = False
+            return is_globe
+        return False
 
     def clean_tracks(self, tracks):
-        self.remove_short_tracks(tracks, minimum_length=3)
+        clean = tracks.copy()
+        #self.remove_short_tracks(clean, minimum_length=3)
+        self.remove_static_balls(clean, minimum_length=3)
+
+        # self.remove_short_tracks(tracks, minimum_length=3)
+        # self.remove_shadow_tracks(tracks, margin=0)
+        # self.keep_valuable_tracks(tracks, percentage=0.25)
 
 
-        #self.remove_short_tracks(tracks, minimum_length=3)
-        #self.remove_shadow_tracks(tracks, margin=0)
-        self.keep_valuable_tracks(tracks, percentage=0.25)
+        return clean
+
+    def remove_static_balls(self, tracks, minimum_length = 3):
+        for track in tracks:
+            track.track = self.filter_consecutive_objects_with_min_count(track.track, min_count=minimum_length)
+
+    def filter_consecutive_objects_with_min_count(self, objects, variance=0.005, min_count=3):
+        filtered_objects = []
+        current_group = []
+
+        for i in range(len(objects)):
+            if i == 0:
+                # Start the first group
+                current_group.append(objects[i])
+            else:
+                # Calculate the difference in y positions
+                y_diff = abs(objects[i].y - objects[i - 1].y)
+
+                if y_diff <= variance:
+                    # Continue the current group
+                    current_group.append(objects[i])
+                else:
+                    # Check the size of the current group before ending it
+                    if len(current_group) < min_count:
+                        filtered_objects.extend(current_group)
+                    # Start a new group
+                    current_group = [objects[i]]
+
+        # Check the last group collected
+        if len(current_group) < min_count:
+            filtered_objects.extend(current_group)
+
+        return filtered_objects
 
     def keep_valuable_tracks(self, tracks, percentage=0.5):
         max_distance = max(track.get_distance_tracked() for track in tracks)
@@ -198,9 +298,8 @@ class PositionTracker:
         for track in shadow:
             tracks.remove(track)
 
-
     def remove_short_tracks(self, tracks, minimum_length=3):
-        to_remove = [track for track in tracks if len(track.track) < minimum_length]
+        to_remove = [track for track in tracks if len(track.track) <= minimum_length]
         for track in to_remove:
             tracks.remove(track)
 
@@ -215,7 +314,6 @@ class PositionTracker:
 
         balls = frame.balls()
         balls_to_track = balls.copy()
-
 
         distances = {}
         for ball in balls:
@@ -250,8 +348,8 @@ class PositionTracker:
         return s_ball, s_track
 
     def plot_tracks(self, tracks, frame_start=-1, frame_end=float('inf')):  # Adding frame_rate parameter
-        import matplotlib.pyplot as plt  # Ensure matplotlib is imported
-
+        # Ensure matplotlib is imported
+        matplotlib.use('TkAgg')
         plt.figure(figsize=(20, 6))
         ax1 = plt.gca()  # Get the current axis
         for track in tracks:
@@ -261,7 +359,8 @@ class PositionTracker:
 
             if frame_numbers:  # Only plot if there are frames in the range
                 # Convert frame numbers to seconds
-                time_seconds = [frame_number / self.fps for frame_number in frame_numbers]
+                time_seconds = [pif.frame_number / self.fps for pif in track.track if
+                                frame_start <= pif.frame_number <= frame_end]
                 ax1.plot(time_seconds, y_positions, marker='o',
                          label=f'Track starting at frame {track.track[0].frame_number}')
 

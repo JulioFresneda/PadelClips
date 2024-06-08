@@ -23,8 +23,9 @@ class Game:
         self.frames = frames
         self.fps = int(fps)
         self.track_ball()
-        self.players = self.initialize_players()
+        #self.players = self.initialize_players()
         #self.tag_players()
+        return self
 
 
     def __str__(self):

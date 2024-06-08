@@ -6,8 +6,8 @@ from padelLynxPackage.Frame import Frame
 
 #video_to_frames("dataset/padel5/padel5_segment2.mp4", "dataset/padel5/predicted_2/images", steps=1)
 
-frames = Frame.load_frames("/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/predicted_2/images", "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/predicted_2/labels")
-fps = get_video_fps("/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_segment2.mp4")
+frames = Frame.load_frames("/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/labels", None)
+fps = get_video_fps("/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_segment3.mp4")
 # print(fps)
 game = Game(frames, fps)
 print(game)

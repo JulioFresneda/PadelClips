@@ -50,28 +50,30 @@ class Frame:
 
 
     @staticmethod
-    def load_frames(frames_path, yolo_path):
+    def load_frames(yolo_path, frames_path = None):
         frames = []
         frames_n = []
         yolo = []
         number_pattern = re.compile(r'\d+')
 
-        for filename in os.listdir(frames_path):
+        for filename in os.listdir(yolo_path):
             # Check if the file ends with .jpg
-            if filename.endswith(".jpg"):
-                # Construct the new filename with .txt extension
-                new_filename = "padel5_segment2_" + filename[:-4] + ".txt"
-                # You can now use this new filename to create a text file or rename, etc.
-                # For demonstration, let's just print the new filename
-                frames.append(os.path.join(frames_path, filename))
-                yolo.append(os.path.join(yolo_path, new_filename))
 
-                match = number_pattern.search(filename)
-                if match:
-                    number = match.group()
-                else:
-                    number = -1
-                frames_n.append(int(filename[:-4]))
+            frame_name = filename[:-4] + ".jpg"
+            # You can now use this new filename to create a text file or rename, etc.
+            # For demonstration, let's just print the new filename
+            if frames_path != None:
+                frames.append(os.path.join(frames_path, frame_name))
+            else:
+                frames.append(None)
+            yolo.append(os.path.join(yolo_path, filename))
+
+            match = number_pattern.search(filename.split('_')[-1])
+            if match:
+                number = match.group()
+            else:
+                number = -1
+            frames_n.append(int(number))
 
         frames_loaded = []
 
@@ -109,7 +111,7 @@ class Frame:
                     width = float(parts[3])
                     height = float(parts[4])
                     conf = float(parts[5])
-                    if conf > 0.5:
+                    if conf > 0.7:
                         detections.append(Object(class_label, x_center, y_center, width, height, conf))
         except:
             pass
