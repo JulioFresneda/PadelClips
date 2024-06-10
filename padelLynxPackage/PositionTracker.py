@@ -55,12 +55,17 @@ class Track:
         self.variance_to_dynamic = 0.000005
         self.variance_distance = 5
 
+
+    def get_pif(self, frame_number):
+        pass
     def get_distance_tracked(self):
         dist = 0.0
         for i, pif in enumerate(self.track):
             if i > 0:
                 dist += PositionInFrame.distance_to(self.track[i - 1], pif)
         return dist
+
+
 
     def purge_static_subtracks(self):
         if len(self.track) > self.variance_distance:
@@ -151,91 +156,114 @@ class PositionTracker:
         self.closed_tracks = []
         self.open_tracks = []
         self.fps = fps
-
         self.frames = frames
-        if class_name == Label.BALL:
-            for i, frame in enumerate(self.frames):
-                if i % 100 == 0:
-                    print("Tracking balls from frame " + str(i) + "/" + str(len(self.frames)), end='\r')
-                self.track_ball(frame)
-                self.close_tracks(frame.frame_number, tolerance=20)
 
-            clean = self.clean_tracks(self.closed_tracks)
-            self.closed_tracks = clean
+        self.manage_tracks()
 
-            tracks_with_globe = self.detect_globes(self.closed_tracks)
-            self.closed_tracks = tracks_with_globe
+        self.identify_breaks()
 
-            # self.plot_tracks([track for track in self.closed_tracks if track.static is False])
-            self.plot_tracks(self.closed_tracks, frame_start=7423-1000, frame_end=7423+1000)
+
+    def identify_breaks(self):
+        pass
+
+
+
+    def manage_tracks(self):
+        for i, frame in enumerate(self.frames):
+            if i % 100 == 0:
+                print("Tracking balls from frame " + str(i) + "/" + str(len(self.frames)), end='\r')
+            self.track_ball(frame)
+            self.close_tracks(frame.frame_number, tolerance=10)
+
+        clean = self.clean_tracks(self.closed_tracks)
+        self.closed_tracks = clean
+
+        #self.plot_tracks(self.closed_tracks, frame_start=3600, frame_end=9000)
+
+        tracks_with_globe = self.detect_globes(self.closed_tracks)
+        self.closed_tracks = tracks_with_globe
+        self.globes = [track for track in self.closed_tracks if track.globe]
+
+        # self.plot_tracks([track for track in self.closed_tracks if track.static is False])
+        self.plot_tracks(self.closed_tracks, frame_start=3600, frame_end=9000, print_globes=False)
 
     def detect_globes(self, tracks):
-        starts_index = []
-        end_index = []
+        starts_index = {}
+        end_index = {}
         for i, track in enumerate(tracks):
             if self.is_start_globe(track):
-                starts_index.append(i)
+                starts_index[i] = track.last_frame()
             if self.is_end_globe(track):
-                end_index.append(i)
+                end_index[i] = track.first_frame()
 
-        pairs = []
-        for e in end_index:
-            closest = -1
-            for s in starts_index:
-                if s > closest and s < e:
-                    closest = s
-            if closest != -1:
-                pairs.append((closest, e))
-                for s in starts_index.copy():
-                    if s < e:
-                        starts_index.remove(s)
+        joins = []
+        for e_pos, e_frame in sorted(end_index.items(), key=lambda item: item[1]):
+            closest_pos = -1
+            closest_frame = -1
+            for s_pos, s_frame in sorted(starts_index.items(), key=lambda item: item[1], reverse=True):
+                if s_frame > closest_frame and s_frame < e_frame:
+                    closest_frame = s_frame
+                    closest_pos = s_pos
+            if closest_pos != -1:
+                joins.append([closest_pos, e_pos])
+                for s_pos, s_frame in starts_index.copy().items():
+                    if s_frame < e_frame:
+                        starts_index.pop(s_pos)
+
+
+
+        joins = self.merge_lists(joins)
+        print(joins)
 
         new_tracks = tracks.copy()
-        for pair in pairs:
+        for join in joins:
             globe = Track()
             globe.globe = True
-            globe.track = tracks[pair[0]].track + tracks[pair[1]].track
-            try:
-                index = new_tracks.index(tracks[pair[0]])
-            except:
-                print(pairs)
-                print(pair)
-                print(tracks[pair[0]].track[0].frame_number)
-            new_tracks.remove(tracks[pair[0]])
+            for i in join:
+                globe.track += tracks[i].track
+
+
+            index = new_tracks.index(tracks[join[0]])
+
+            for i in join:
+                new_tracks.remove(tracks[i])
             new_tracks.insert(index, globe)
-            new_tracks.remove(tracks[pair[1]])
+
 
         return new_tracks
 
-    def is_start_globe(self, track: Track, min=3, high=0.1):
+    def merge_lists(self, lists):
+        if not lists:
+            return lists
+
+        merged = [lists[0]]  # Start with the first list
+
+        for current in lists[1:]:
+            if merged[-1][-1] == current[
+                0]:  # Check if last element of the last merged list equals the first element of the current list
+                merged[-1].extend(current[1:])  # Extend the last merged list with the rest of the current list
+            else:
+                merged.append(current)  # If no match, just add the current list to merged list
+
+        return merged
+
+    def is_start_globe(self, track: Track, min=3, high=0.2):
         if len(track.track) >= min and track.track[-1].y < high:
             start_globe = track.track[-min:]
-            is_globe = True
-            last_y = 1.1
-            for sg in start_globe:
-                if sg.y < last_y:
-                    last_y = sg.y
-                else:
-                    is_globe = False
+            is_globe = start_globe[0].y > start_globe[-1].y
             return is_globe
         return False
 
     def is_end_globe(self, track: Track, min=3, high=0.2):
         if len(track.track) >= min and track.track[0].y < high:
             end_globe = track.track[:min]
-            is_globe = True
-            last_y = 0.0
-            for eg in end_globe:
-                if eg.y > last_y:
-                    last_y = eg.y
-                else:
-                    is_globe = False
+            is_globe = end_globe[0].y < end_globe[-1].y
             return is_globe
         return False
 
     def clean_tracks(self, tracks):
         clean = tracks.copy()
-        #self.remove_short_tracks(clean, minimum_length=3)
+        self.remove_short_tracks(clean, minimum_length=2)
         self.remove_static_balls(clean, minimum_length=3)
 
         # self.remove_short_tracks(tracks, minimum_length=3)
@@ -277,6 +305,8 @@ class PositionTracker:
 
         return filtered_objects
 
+
+
     def keep_valuable_tracks(self, tracks, percentage=0.5):
         max_distance = max(track.get_distance_tracked() for track in tracks)
 
@@ -310,7 +340,7 @@ class PositionTracker:
             self.closed_tracks.append(track)
             self.open_tracks.remove(track)
 
-    def track_ball(self, frame):
+    def track_ball(self, frame, max_distance = 0.3):
 
         balls = frame.balls()
         balls_to_track = balls.copy()
@@ -318,8 +348,11 @@ class PositionTracker:
         distances = {}
         for ball in balls:
             for track in self.open_tracks:
-                distances[(ball, track)] = PositionInFrame.distance_to(PositionInFrame(ball.x, ball.y, None),
-                                                                       track.last_pif())
+                distance = PositionInFrame.distance_to(PositionInFrame(ball.x, ball.y, None),
+                                                                track.last_pif())
+
+                if max_distance > distance:
+                    distances[(ball, track)] = distance
 
         while len(balls_to_track) > 0 and len(distances.keys()) > 0:
             s_ball, s_track = self.get_shortest(distances)
@@ -347,7 +380,7 @@ class PositionTracker:
 
         return s_ball, s_track
 
-    def plot_tracks(self, tracks, frame_start=-1, frame_end=float('inf')):  # Adding frame_rate parameter
+    def plot_tracks(self, tracks, frame_start=-1, frame_end=float('inf'), print_globes = False):  # Adding frame_rate parameter
         # Ensure matplotlib is imported
         matplotlib.use('TkAgg')
         plt.figure(figsize=(20, 6))
@@ -361,8 +394,16 @@ class PositionTracker:
                 # Convert frame numbers to seconds
                 time_seconds = [pif.frame_number / self.fps for pif in track.track if
                                 frame_start <= pif.frame_number <= frame_end]
-                ax1.plot(time_seconds, y_positions, marker='o',
-                         label=f'Track starting at frame {track.track[0].frame_number}')
+
+                if print_globes:
+                    color = 'orange' if track.globe else 'blue'
+
+                    ax1.plot(time_seconds, y_positions, marker='o',
+                         label=f'Track starting at frame {track.track[0].frame_number}', color=color)
+                else:
+                    ax1.plot(time_seconds, y_positions, marker='o',
+                             label=f'Track starting at frame {track.track[0].frame_number}')
+
 
         ax1.set_xlabel('Time in Seconds')  # Primary x-axis for time in seconds
         ax1.set_ylabel('Y Position of Ball')
