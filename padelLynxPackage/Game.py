@@ -21,11 +21,55 @@ from padelLynxPackage.PositionTracker import PositionTracker
 class Game:
     def __init__(self, frames, fps):
         self.frames = frames
+
         self.fps = int(fps)
-        self.track_ball()
+        self.detect_net()
+        self.ball_playtime = self.track_ball()
+        self.longest_points(10)
         #self.players = self.initialize_players()
         #self.tag_players()
-        return self
+
+    def detect_net(self):
+        best_net_frame = self.find_frame_with_average_confidence(label=Label.NET, num_objects=1)
+        self.net = [obj for obj in best_net_frame.objects if obj.class_label == Label.NET.value][0]
+
+    def order_frames(self, frames):
+        max_frame = max(obj.frame_number for obj in frames)
+
+        # Create a list of None with the size of the maximum frame number + 1
+        result = [None] * (max_frame + 1)
+
+        # Place each object in its corresponding position
+        for obj in frames:
+            result[obj.frame_number] = obj
+
+        return result
+
+    def longest_points(self, top_n):
+        top_x_lists = []
+        for pt, kind in self.ball_playtime.items():
+            if kind == 'point':
+                top_x_lists.append(pt)
+
+        sorted_keys = sorted(top_x_lists, key=lambda x: abs(x[0] - x[1]), reverse=True)
+
+        for i, top in enumerate(sorted_keys[:top_n]):
+            print("Game " + str(i) + ": " + self.frame_to_timestamp(top[0]) + " -> " + self.frame_to_timestamp(top[1]))
+
+    def frame_to_timestamp(self, frame_number):
+        # Calculate total seconds
+        total_seconds = frame_number / self.fps
+
+        # Hours, minutes, and seconds
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        seconds = int(total_seconds % 60)
+
+        # Format the timestamp as HH:MM:SS
+        timestamp = f"{hours:02}:{minutes:02}:{seconds:02}"
+
+        return timestamp
+
 
 
     def __str__(self):
@@ -36,7 +80,8 @@ class Game:
 
 
     def track_ball(self):
-        self.position_tracker = PositionTracker(self.frames, self.fps, Label.BALL)
+        self.position_tracker = PositionTracker(self.frames, self.fps, self.net)
+        return self.position_tracker.playtime
 
     def tag_players(self):
         for i, frame in enumerate(self.frames):
@@ -46,28 +91,30 @@ class Game:
 
 
     def initialize_players(self):
-        self.most_representative_frame = self.find_frame_with_average_confidence()
+        self.most_representative_frame_players = self.find_frame_with_average_confidence(label=Label.PLAYER, num_objects=4)
         players = []
         idx_to_names = {0: "A", 1:"B", 2:"C", 3:"D"}
-        for idx, mr_player in enumerate(self.most_representative_frame.players()):
+        for idx, mr_player in enumerate(self.most_representative_frame_players.players()):
             yolo_info = mr_player.get_yolo()
-            mr_player_features = PlayerFeatures(self.most_representative_frame.frame_path, yolo_info)
+            mr_player_features = PlayerFeatures(self.most_representative_frame_players.frame_path, yolo_info)
             game_player = Player(idx_to_names[idx], mr_player_features)
             players.append(game_player)
 
         return players
-    def find_frame_with_average_confidence(self):
+    def find_frame_with_average_confidence(self, label: Label, num_objects = 1):
         best_frame = None
         best_average_confidence = 0.0
 
+        label_number = label.value
+
         for frame in self.frames:
             # Filter objects with class_label == 1
-            class_1_objects = [obj for obj in frame.objects if obj.class_label == 1]
+            class_objects = [obj for obj in frame.objects if obj.class_label == label_number]
 
             # Check if there are exactly four such objects
-            if len(class_1_objects) == 4:
+            if len(class_objects) == num_objects:
                 # Calculate the average confidence of these objects
-                average_confidence = sum(obj.conf for obj in class_1_objects) / len(class_1_objects)
+                average_confidence = sum(obj.conf for obj in class_objects) / len(class_objects)
 
                 # Find the frame where this average deviation is minimized
                 if best_average_confidence < average_confidence:

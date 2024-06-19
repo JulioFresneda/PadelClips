@@ -6,7 +6,7 @@ from padelLynxPackage.aux import *
 class Label(Enum):
     BALL = 0
     PLAYER = 1
-    RACKET = 2
+    NET = 2
 class Object:
 
 
@@ -41,6 +41,7 @@ class Frame:
         self.frame_path = frame_path
         self.objects = yolo
 
+
     def players(self):
         return [obj for obj in self.objects if obj.class_label == 1]
 
@@ -48,46 +49,64 @@ class Frame:
         return [obj for obj in self.objects if obj.class_label == 0]
 
 
+    @staticmethod
+    def merge_frame_list(list_a, list_b):
+
+        bigger = (list_a if len(list_a) > len(list_b) else list_b).copy()
+        smaller = list_a if len(list_a) <= len(list_b) else list_b
+
+        for i, small_frame in enumerate(smaller):
+            bigger[i].objects += small_frame.objects
+
+        return bigger
 
     @staticmethod
-    def load_frames(yolo_path, frames_path = None):
+    def load_frames(yolo_path, frames_path = None, mapping = {0:Label.BALL}):
+
+        yolo_files = {}
         frames = []
-        frames_n = []
-        yolo = []
+        frame_img_path = []
+
         number_pattern = re.compile(r'\d+')
 
         for filename in os.listdir(yolo_path):
             # Check if the file ends with .jpg
 
-            frame_name = filename[:-4] + ".jpg"
+            #frame_name = filename[:-4] + ".jpg"
             # You can now use this new filename to create a text file or rename, etc.
             # For demonstration, let's just print the new filename
             if frames_path != None:
-                frames.append(os.path.join(frames_path, frame_name))
+                #frames.append(os.path.join(frames_path, frame_name))
+                pass
             else:
-                frames.append(None)
-            yolo.append(os.path.join(yolo_path, filename))
+                frame_img_path.append(None)
+
+
 
             match = number_pattern.search(filename.split('_')[-1])
             if match:
                 number = match.group()
             else:
                 number = -1
-            frames_n.append(int(number))
 
-        frames_loaded = []
-
-        for frame, fnumber, yolo_info in zip(frames, frames_n, yolo):
-
-            frames_loaded.append(Frame(fnumber, frame, Frame.read_yolo_txt(yolo_info)))
+            yolo_files[int(number)] = os.path.join(yolo_path, filename)
 
 
-        frames_loaded = sorted(frames_loaded, key=lambda x: x.frame_number)
 
-        return frames_loaded
+        frame_numbers = list(yolo_files.keys())
+        max_frames = max(frame_numbers)
+
+        for i in range(max_frames+1):
+            if i in frame_numbers:
+                frames.append(Frame(i, None, Frame.read_yolo_txt(yolo_files[i], mapping)))
+            else:
+                frames.append(Frame(i,None,[]))
+
+
+        return frames
 
     @staticmethod
-    def read_yolo_txt(file_path):
+    def read_yolo_txt(file_path, mapping):
         """
         Reads a YOLO format .txt file and returns a list of detections.
 
@@ -112,7 +131,9 @@ class Frame:
                     height = float(parts[4])
                     conf = float(parts[5])
                     if conf > 0.7:
-                        detections.append(Object(class_label, x_center, y_center, width, height, conf))
+                        cl = mapping[class_label].value
+
+                        detections.append(Object(cl, x_center, y_center, width, height, conf))
         except:
             pass
         return detections
