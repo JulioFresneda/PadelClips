@@ -19,6 +19,7 @@ class PositionTracker:
 
         self.playtime = self.generate_playtime()
 
+        #reduced = False
         reduced = True
         while reduced:
             reduced = self.reduce_noise_v2()
@@ -28,12 +29,14 @@ class PositionTracker:
 
         self.update_tags()
 
-        self.detect_breaks(100)
+        self.detect_breaks_v2(100)
+        #self.detect_breaks_under_net()
+        self.playtime = self.generate_playtime()
 
         self.points = self.generate_points()
 
         # self.plot_tracks(self.closed_tracks, frame_start=41550, frame_end=42600, print_globes=False)
-        self.plot_tracks_with_net(self.closed_tracks, frame_start=31950, frame_end=33300)
+        self.plot_tracks_with_net(self.closed_tracks, frame_start=41550, frame_end=42600)
 
     def get_tracks_between_frames(self, start, end, include_partial=True):
         result = []
@@ -88,7 +91,78 @@ class PositionTracker:
                             self.frames[i].tag = 'break'
 
 
+    def detect_breaks_under_net(self, min_max = 0.15):
+        points = []
+        for frames, value in self.playtime.items():
+            if value == 'point':
+                points.append(frames)
 
+        for point in points:
+            tracks = self.get_tracks_between_frames(point[0], point[1], include_partial=True)
+            tracks = [track for track in tracks if len(track.track) > 0 and
+                      track.position_in_net(self.net) == 'under' and track.get_direction_changes() >= 2
+                      and PositionInFrame.calculate_max_min(track.track) > min_max]
+
+            for track in tracks:
+                pifs = track.track.copy()
+                for pif in track.track:
+                    if pif.frame_number < point[0] or pif.frame_number > point[1]:
+                        pifs.remove(pif)
+
+                for pif in pifs:
+                    self.frames[pif.frame_number].tag = 'break'
+
+
+
+
+
+
+
+
+
+
+
+
+    def detect_breaks_v2(self, window, max_min=0.15):
+
+        points = []
+        for frames, value in self.playtime.items():
+            if value == 'point':
+                points.append(frames)
+
+        for point in points:
+            tracks = self.get_tracks_between_frames(point[0], point[1], include_partial=True)
+            tracks = [track for track in tracks if len(track.track) > 0]
+            megatrack = []
+            for track in tracks:
+                pifs = track.track.copy()
+                for pif in track.track:
+                    if pif.frame_number < point[0] or pif.frame_number > point[1]:
+                        pifs.remove(pif)
+
+                megatrack += pifs
+
+
+            buffer = []
+            if len(megatrack) > 0:
+                initial_pos = self.position_over_the_net(megatrack[0].y, self.net)
+                for pif in megatrack:
+                    pif_pos = self.position_over_the_net(pif.y, self.net)
+                    if pif_pos == initial_pos:
+                        buffer.append(pif)
+                    else:
+                        if len(buffer) > 0 and buffer[-1].frame_number - buffer[0].frame_number >= window:
+                            bmax, bmin = PositionInFrame.calculate_max_min(buffer)
+                            if bmax - bmin < max_min or initial_pos == 'under':
+                                for i in range(buffer[0].frame_number, buffer[-1].frame_number+1):
+                                    self.frames[i].tag = 'break'
+                        buffer = []
+                        initial_pos = self.position_over_the_net(pif.y, self.net)
+                if len(buffer) > 0 and buffer[-1].frame_number - buffer[0].frame_number >= window:
+                    bmax, bmin = PositionInFrame.calculate_max_min(buffer)
+                    if bmax - bmin < max_min or initial_pos == 'under':
+                        for i in range(buffer[0].frame_number, buffer[-1].frame_number+1):
+                            self.frames[i].tag = 'break'
 
 
     def position_over_the_net(self, y, net):
@@ -145,18 +219,16 @@ class PositionTracker:
 
     def generate_playtime(self):
         playtime = self.timeline_to_sections()
-        # playtime = self.reduce_noise(playtime, limit=30)
-        # playtime = self.reduce_noise_v2(playtime)
         return playtime
 
-    def reduce_noise_v2(self, window=30):
+    def reduce_noise_v2(self, window=80, mess_window=25):
         reduced = False
         keys = list(self.playtime.keys())
         for i in range(1, len(self.playtime.keys()) - 1):
-            if self.playtime[keys[i - 1]] == self.playtime[keys[i + 1]] and \
+            if (self.playtime[keys[i]] != 'mess' or keys[i][1] - keys[i][0] < mess_window) and self.playtime[keys[i - 1]] == self.playtime[keys[i + 1]] and \
                     (self.playtime[keys[i]] != self.playtime[keys[i - 1]] and keys[i][1] - keys[i][0] < window) and \
-                    keys[i - 1][1] - keys[i - 1][0] > keys[i][1] - keys[i][0] and \
-                    keys[i + 1][1] - keys[i + 1][0] > keys[i][1] - keys[i][0]:
+                    (keys[i - 1][1] - keys[i - 1][0] > keys[i][1] - keys[i][0] or
+                     keys[i + 1][1] - keys[i + 1][0] > keys[i][1] - keys[i][0]):
                 self.playtime[keys[i]] = self.playtime[keys[i - 1]]
                 reduced = True
         return reduced
@@ -251,7 +323,7 @@ class PositionTracker:
             if i % 100 == 0:
                 print("Tracking balls from frame " + str(i) + "/" + str(len(self.frames)), end='\r')
             self.track_ball(frame)
-            self.close_tracks(frame.frame_number, tolerance=0)
+            self.close_tracks(frame.frame_number)
 
         clean = self.clean_tracks(self.closed_tracks)
         self.closed_tracks = clean
@@ -337,9 +409,10 @@ class PositionTracker:
 
     def clean_tracks(self, tracks):
         clean = tracks.copy()
-        self.remove_short_tracks(clean, minimum_length=2)
+        self.remove_short_tracks(clean)
         self.remove_static_balls(clean, minimum_length=3)
-        self.remove_short_tracks(clean, minimum_length=2)
+        self.remove_short_tracks(clean)
+        #self.remove_high_density_tracks(clean)
 
         # self.remove_short_tracks(tracks, minimum_length=3)
         # self.remove_shadow_tracks(tracks, margin=0)
@@ -484,7 +557,12 @@ class PositionTracker:
             tracks.remove(track)
 
     def remove_short_tracks(self, tracks, minimum_length=3):
-        to_remove = [track for track in tracks if len(track.track) <= minimum_length]
+        to_remove = [track for track in tracks if len(track.track) <= minimum_length and abs(track.max_min()[1]-track.max_min()[0]) < 0.1]
+        for track in to_remove:
+            tracks.remove(track)
+
+    def remove_high_density_tracks(self, tracks, max_length=20, max_density = 0.06):
+        to_remove = [track for track in tracks if len(track.track) <= max_length and track.density() > max_density]
         for track in to_remove:
             tracks.remove(track)
 
@@ -534,6 +612,50 @@ class PositionTracker:
                 distances.pop((ball, track))
 
         return s_ball, s_track
+
+    def plot_tracks_with_net_and_players(self, tracks, frame_start=-1, frame_end=float('inf')):
+        matplotlib.use('TkAgg')  # Use the appropriate backend
+        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)  # Create two subplots sharing the x-axis
+
+        # First plot (Tracks)
+        for track in tracks:
+            frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            y_positions = [1 - pif.y for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+
+            if frame_numbers:
+                ax1.plot(frame_numbers, y_positions, marker='o',
+                         label=f'Track starting at frame {track.track[0].frame_number}', color='green')
+
+        ax1.set_xlabel('Frame Number')
+        ax1.set_ylabel('Y Position of Ball')
+        ax1.set_title('Track of Ball Y Positions Over Time')
+        ax1.set_xlim(left=frame_start, right=frame_end)  # Set the x-axis limits
+        # ax1.legend()
+        ax1.grid(True)
+
+        # Add a new line with a fixed y value, e.g., y=0.5, across the full x range
+        ax1.axhline(y=(1 - self.net.y) + self.net.height / 2, color='blue', label='Net (Sup)')
+        ax1.axhline(y=(1 - self.net.y) - self.net.height / 2, color='blue', label='Net (Inf)')
+
+        # Create secondary x-axis for frame numbers
+        ax2 = ax1.twiny()
+        ax2.set_xlabel('Time in Seconds')
+        ax2.set_xlim(left=frame_start / self.fps, right=frame_end / self.fps)
+        ax2.set_xticks(ax1.get_xticks() / self.fps)
+        ax2.grid(True)
+
+        colors = [
+            'green' if frame.tag == 'point' else 'red' if frame.tag == 'mess' else 'yellow' if frame.tag == 'break' else 'blue'
+            for frame in self.frames]
+
+        ax3.vlines(range(len(self.frames)), 0, 1, colors=colors)
+        ax3.set_xlabel('Frame Number')
+        ax3.set_yticks([])
+        ax3.set_title('Track Coverage')
+        ax3.grid(True)
+
+        plt.tight_layout()
+        plt.show()
 
     def plot_tracks_with_net(self, tracks, frame_start=-1, frame_end=float('inf')):  # Adding frame_rate parameter
 

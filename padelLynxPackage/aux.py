@@ -7,7 +7,7 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from sklearn.model_selection import train_test_split
 from PIL import Image, ImageDraw
 from padelLynxPackage.Game import *
-def video_to_frames(video_path, output_folder, limit = None, steps = 10, real_count=False):
+def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 10, real_count=False):
     # Create the output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -36,6 +36,7 @@ def video_to_frames(video_path, output_folder, limit = None, steps = 10, real_co
             name = frame_count
         else:
             name = exported_count
+
         frame_filename = os.path.join(output_folder, f"frame_{frame_count:06}.jpg")
         #frame_filename = os.path.join(output_folder, f"{frame_count+1}.jpg")
         if (frame_count % steps == 0):

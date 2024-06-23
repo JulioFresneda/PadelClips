@@ -1,7 +1,8 @@
 from enum import Enum
 import os, re
 from padelLynxPackage.aux import *
-
+import pandas as pd
+from collections import defaultdict
 
 class Label(Enum):
     BALL = 0
@@ -10,7 +11,7 @@ class Label(Enum):
 class Object:
 
 
-    def __init__(self, class_label, x_center, y_center, width, height, conf):
+    def __init__(self, class_label, x_center, y_center, width, height, conf, tag = None):
         self.class_label = class_label
         self.class_label_name = Label(class_label).name
         self.x = x_center
@@ -19,6 +20,7 @@ class Object:
         self.height = height
         self.size = width*height
         self.conf = conf
+        self.tag = tag
 
 
 
@@ -31,12 +33,12 @@ class Object:
     def __repr__(self):  # This makes it easier to see the result when printing the list
         return f"Object({self.class_label_name})"
 
-    def get_yolo(self):
+    def get_position(self):
         return (self.x, self.y, self.width, self.height)
 
 
 class Frame:
-    def __init__(self, frame_number, frame_path, yolo):
+    def __init__(self, frame_number, frame_path, yolo = []):
         self.frame_number = frame_number
         self.frame_path = frame_path
         self.objects = yolo
@@ -47,6 +49,11 @@ class Frame:
 
     def balls(self):
         return [obj for obj in self.objects if obj.class_label == 0]
+
+    def update_player_tag(self, old, new):
+        for obj in self.objects:
+            if obj.tag == old:
+                obj.tag = new
 
 
     @staticmethod
@@ -59,6 +66,48 @@ class Frame:
             bigger[i].objects += small_frame.objects
 
         return bigger
+
+    @staticmethod
+    def load_from_excel(ball_excel_path, players_excel_path, mapping = {'ball':{0:Label.BALL}, 'players':{0:Label.NET, 1:Label.PLAYER}}):
+        df_ball = pd.read_excel(ball_excel_path)
+        df_players = pd.read_excel(players_excel_path)
+
+
+        frames = []
+
+        frame_info = defaultdict(list)
+        for _, row in df_ball.iterrows():
+            frame_info[int(row['frame'])].append(Object(mapping['ball'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf']))
+
+        for _, row in df_players.iterrows():
+            frame_info[int(row['frame'])].append(Object(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'], tag=row['id']))
+
+
+
+        # Determine the range of frame numbers
+        max_frame = int(max(frame_info.keys()))
+
+        for frame_number in range(max_frame + 1):
+            if frame_number%100 == 0:
+                print("Loading frame " + str(frame_number) + "/" + str(max_frame), end='\r')
+            if frame_number in frame_info:
+                frame = Frame(frame_number, None)
+                obj = []
+                for object in frame_info[frame_number]:
+                    obj.append(object)
+                frame.objects = obj.copy()
+
+                frames.append(frame)
+
+            else:
+                frames.append(Frame(frame_number, None))
+
+
+
+        return frames
+
+
+
 
     @staticmethod
     def load_frames(yolo_path, frames_path = None, mapping = {0:Label.BALL}):
@@ -137,6 +186,10 @@ class Frame:
         except:
             pass
         return detections
+
+
+    def add_object(self, object: Object):
+        self.objects.append(object)
 
 
 

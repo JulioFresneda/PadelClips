@@ -1,63 +1,132 @@
-import torch
-import cv2
+import os.path
+
+from ultralytics import YOLO
+from padelLynxPackage.FeatureExtraction import process_image, FeatureExtractor
+
+import pandas as pd
 import numpy as np
-import subprocess
-import re, os
-from moviepy.editor import VideoFileClip, concatenate_videoclips
-def read_yolo_txt(file_path):
-    """
-    Reads a YOLO format .txt file and returns a list of detections.
 
-    Each detection is a tuple: (class_label, x_center, y_center, width, height)
+class Inference:
+    def __init__(self, ball_model_path, players_model_path):
+        self.ball_model = YOLO(ball_model_path)
+        self.players_model = YOLO(players_model_path)
 
-    Parameters:
-        file_path (str): Path to the YOLO format .txt file.
+    def inference(self, source, output_folder, conf):
+        self.conf = conf
+        ball_model = self.ball_model(source, stream=True, half=False, imgsz=1920, save=False, save_frames=False, show_conf=True,
+                        verbose=False, show_labels=True, line_width=4, save_txt=True, save_conf=True)
 
-    Returns:
-        List[Tuple[int, float, float, float, float]]: List of detections.
-    """
-    detections = []
+        player_model = self.players_model.track(source, stream=True, half=False, imgsz=1920, save=False, save_frames=False,
+                                     show_conf=True,
+                                     verbose=False, show_labels=True, line_width=4, save_txt=False, save_conf=False)
 
-    with open(file_path, 'r') as file:
-        for line in file:
-            parts = line.strip().split()
-            class_label = int(parts[0])
-            x_center = float(parts[1])
-            y_center = float(parts[2])
-            width = float(parts[3])
-            height = float(parts[4])
-            detections.append((class_label, x_center, y_center, width, height))
+        print("Inferencing ball...")
+        ball_df, _ = self.inference_to_df(ball_model)
+        print("Inferencing players and net...")
+        #players_df, players_ft = self.inference_to_df(player_model, add_features=True)
 
-    return detections
+        ball_df.to_excel(os.path.join(output_folder, "ball_inference.xlsx"), index=False)
+        #players_df.to_excel(os.path.join(output_folder, "players_inference.xlsx"), index=False)
+        #players_ft = {f'{tag}': features for tag, features in zip(players_ft['tags'], players_ft['features'])}
+        #np.savez_compressed(os.path.join(output_folder, "players_inference_features.npz"), **players_ft)
 
 
-def split_video(source_path, segment_length=30):
-    """ Split the video into segments of 'segment_length' seconds. """
-    video = VideoFileClip(source_path)
-    duration = int(video.duration)
-    segments = []
+    def add_features(self, df, image):
+        feature_extractor = FeatureExtractor()
 
-    for start in range(0, duration, segment_length):
-        end = min(start + segment_length, duration)
-        segment = video.subclip(start, end)
-        segment_path = f"{source_path}_{start}_{end}.mp4"
-        segment.write_videofile(segment_path, codec="libx264")
-        segments.append(segment_path)
+        def apply_features(row):
+            # Extracts features based on bounding box coordinates and image
+            x, y, w, h = row['xywh']
+            x, y, w, h = int(x.cpu().item()), int(y.cpu().item()), int(w.cpu().item()), int(h.cpu().item())
+            x, y = x - w // 2, y - h // 2
+            image_portion = image[y:y + h, x:x + w]
+            features = feature_extractor.extract_deep_features(image_portion)
+            tag = row['id']
+            return pd.Series([features, tag])
 
-    return segments
+        # Group by 'id' and find the row with the highest confidence for each group
+        idx = df.groupby('id')['conf'].idxmax()
+        result = df.loc[idx].apply(apply_features, axis=1)
+        result.columns = ['features', 'tags']
 
-def process_segments(segments, model):
-    """ Run model inference on each video segment and save the results. """
-    processed_clips = []
-    for segment in segments:
-        # Replace 'model' with your actual model inference call
-        result_clip_path = model(segment, stream=False, imgsz=1920, save=True, line_width=4, save_txt=True, save_conf=True)
-        processed_clips.append(VideoFileClip(result_clip_path))
+        # Return two separate Series or arrays as required
+        return result
 
-    return processed_clips
 
-def concatenate_segments(processed_clips, output_path):
-    """ Concatenate all processed segments into a final video. """
-    final_clip = concatenate_videoclips(processed_clips)
-    final_clip.write_videofile(output_path, codec="libx264")
+
+
+
+
+    def inference_to_df(self, model, add_features = False):
+
+
+
+        results_df = {'frame':[], 'class':[], 'x':[], 'y':[], 'w':[], 'h':[], 'conf':[], 'id':[], 'xywh':[]}
+
+
+
+        image = None
+        for result in model:
+
+            boxes = result.boxes  # Boxes object for bounding box outputs
+            conf = boxes.conf
+            xywhn = boxes.xywhn
+            xywh = boxes.xywh
+            cls = boxes.cls
+            if add_features:
+                id = boxes.id
+            else:
+                id = pd.Series([None] * len(cls))
+            image = result.orig_img
+
+
+
+            for (nx, ny, nw, nh), id, c, cl, xywh_t in zip(xywhn, id, conf, cls, xywh):
+                if c.cpu().item() >= self.conf:
+                    fn = model.gi_frame.f_locals['gen'].gi_frame.f_locals['self'].seen -1
+
+                    results_df['frame'].append(fn)
+                    results_df['class'].append(int(cl.cpu().item()))
+
+                    results_df['x'].append(nx.cpu().item())
+                    results_df['y'].append(ny.cpu().item())
+                    results_df['w'].append(nw.cpu().item())
+                    results_df['h'].append(nh.cpu().item())
+
+                    results_df['conf'].append(c.cpu().item())
+
+                    if add_features:
+
+
+                        results_df['xywh'].append(xywh_t)
+                        results_df['id'].append(int(id.cpu().item()))
+
+
+
+                    else:
+                        results_df['id'].append(None)
+                        results_df['xywh'].append(None)
+
+
+
+            if fn % 100 == 0:
+                print("Inferenced frame " + str(fn), end='\r', flush=True)
+
+        results_df = pd.DataFrame(results_df)
+        if add_features:
+            features = self.add_features(results_df, image)
+        else:
+            features = None
+
+        results_df = results_df.drop('xywh', axis=1)
+
+        return results_df, features
+
+
+model_ball = "/home/juliofgx/PycharmProjects/padelLynx/models/ball/weights/best.pt"
+model_players = "/home/juliofgx/PycharmProjects/padelLynx/models/players/weights/best.pt"
+inference = Inference(model_ball, model_players)
+
+source = "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_segment3.mp4"
+inference.inference(source, "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/", conf=0.25)
 

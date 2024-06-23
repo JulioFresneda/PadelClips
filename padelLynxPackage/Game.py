@@ -11,23 +11,37 @@ import matplotlib.pyplot as plt
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler
 
-from padelLynxPackage.Frame import Object, Frame, Label
+from padelLynxPackage.Frame import Frame, Label
 from padelLynxPackage.Player import *
 import random
 
 from padelLynxPackage.PositionTracker import PositionTracker
-
+import numpy as np
+import ast
 
 class Game:
-    def __init__(self, frames, fps):
+    def __init__(self, frames, fps, player_features):
         self.frames = frames
+        self.player_features = player_features
+
+        #self.players = self.initialize_players()
+        #self.tag_players_in_frames()
 
         self.fps = int(fps)
         self.detect_net()
         self.ball_playtime = self.track_ball()
         self.longest_points(10)
-        #self.players = self.initialize_players()
-        #self.tag_players()
+
+
+
+        self.ball_playtime.plot_tracks_with_net_and_players(self.ball_playtime.closed_tracks, frame_start=0, frame_end=1000)
+
+
+
+    def get_player_features(self, tag):
+        pf = self.player_features[str(int(tag))]
+        return pf
+
 
     def detect_net(self):
         best_net_frame = self.find_frame_with_average_confidence(label=Label.NET, num_objects=1)
@@ -47,7 +61,7 @@ class Game:
 
     def longest_points(self, top_n):
         top_x_lists = []
-        for pt, kind in self.ball_playtime.items():
+        for pt, kind in self.ball_playtime.playtime.items():
             if kind == 'point':
                 top_x_lists.append(pt)
 
@@ -81,13 +95,13 @@ class Game:
 
     def track_ball(self):
         self.position_tracker = PositionTracker(self.frames, self.fps, self.net)
-        return self.position_tracker.playtime
+        return self.position_tracker
 
-    def tag_players(self):
+    def tag_players_in_frames(self):
         for i, frame in enumerate(self.frames):
-            if i%10 == 0:
+            if i%100 == 0:
                 print("Tagging frame " + str(i) + " out of " + str(len(self.frames)), end='\r')
-            self.tag_players_in_frame(frame, plot=False)
+            self.tag_players_in_frame(frame)
 
 
     def initialize_players(self):
@@ -95,8 +109,9 @@ class Game:
         players = []
         idx_to_names = {0: "A", 1:"B", 2:"C", 3:"D"}
         for idx, mr_player in enumerate(self.most_representative_frame_players.players()):
-            yolo_info = mr_player.get_yolo()
-            mr_player_features = PlayerFeatures(self.most_representative_frame_players.frame_path, yolo_info)
+            mr_player_tag = mr_player.tag
+
+            mr_player_features = self.get_player_features(mr_player_tag)
             game_player = Player(idx_to_names[idx], mr_player_features)
             players.append(game_player)
 
@@ -124,7 +139,7 @@ class Game:
         return best_frame
 
 
-    def tag_players_in_frame(self, frame: Frame, plot=False):
+    def tag_players_in_frame(self, frame: Frame):
         """
         Matches players between two frames based on extracted features and plots the results.
 
@@ -142,16 +157,16 @@ class Game:
         for player in self.players:
             tags[player.tag] = player
 
-        objects = []
+        players_from_frame = []
         for obj in frame.players():
-            objects.append(obj)
+            players_from_frame.append(obj)
 
 
         for tag in tags.keys():
-            for idx, obj in enumerate(objects):
-                obj_ft = PlayerFeatures(frame.frame_path, obj.get_yolo())
-                dist = PlayerFeatures.get_distance(tags[tag].player_features, obj_ft)
-                pairs[(tag, idx)] = dist
+            for obj in players_from_frame:
+                player_in_frame_ft = self.get_player_features(obj.tag)
+                dist = Player.features_distance(tags[tag].template_features, player_in_frame_ft)
+                pairs[(tag, obj.tag)] = dist
 
         while len(pairs.keys()) > 0:
             lowest_dist = float('inf')
@@ -170,55 +185,11 @@ class Game:
                 elif idx == pair[1]:
                     pairs.pop(pair)
 
-        print(matches)
+
         for match in matches:
-            frame.players()[match[1]].tag = match[0]
+            frame.update_player_tag(match[1], match[0])
 
-        if(plot):
 
-            for match in matches:
-                img1, color_hist1, deep_feat1 = tags[match[0]].player_features.get_player_features()
-                img2, color_hist2, deep_feat2 = PlayerFeatures(frame.frame_path, frame.players()[match[1]].get_yolo()).get_player_features()
 
-                # Plot the results
-                plt.figure(figsize=(24, 6))
-
-                # Plot the cropped player image from the first frame
-                plt.subplot(1, 3, 1)
-                plt.title(f'Frame {self.most_representative_frame.frame_number} - Player {match[0]}')
-                plt.imshow(cv2.cvtColor(img1, cv2.COLOR_BGR2RGB))
-                plt.axis('off')
-
-                # Plot the color histogram from the first frame
-                plt.subplot(1, 3, 2)
-                plt.title(f'Frame {self.most_representative_frame.frame_number} - Player {match[0]} Color Histogram')
-                for channel, color in zip(range(3), ('r', 'g', 'b')):
-                    plt.plot(color_hist1[channel * 256:(channel + 1) * 256], color=color)
-
-                # Plot the deep features from the first frame
-                plt.subplot(1, 3, 3)
-                plt.title(f'Frame {self.most_representative_frame.frame_number} - Player {match[0]} Deep Features')
-                plt.plot(deep_feat1[:100])  # Display the first 100 features for visualization
-
-                plt.figure(figsize=(24, 6))
-
-                # Plot the cropped player image from the second frame
-                plt.subplot(1, 3, 1)
-                plt.title(f'Frame {frame.frame_number} - Player {match[0]}')
-                plt.imshow(cv2.cvtColor(img2, cv2.COLOR_BGR2RGB))
-                plt.axis('off')
-
-                # Plot the color histogram from the second frame
-                plt.subplot(1, 3, 2)
-                plt.title(f'Frame {frame.frame_number} - Player {match[0]} Color Histogram')
-                for channel, color in zip(range(3), ('r', 'g', 'b')):
-                    plt.plot(color_hist2[channel * 256:(channel + 1) * 256], color=color)
-
-                # Plot the deep features from the second frame
-                plt.subplot(1, 3, 3)
-                plt.title(f'Frame {frame.frame_number} - Player {match[0]} Deep Features')
-                plt.plot(deep_feat2[:100])  # Display the first 100 features for visualization
-
-                plt.show()
 
         return matches

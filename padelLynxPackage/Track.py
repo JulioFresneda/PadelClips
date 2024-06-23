@@ -17,6 +17,13 @@ class PositionInFrame:
     def distance_to(a, b):
         return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 
+    @staticmethod
+    def get_direction(a, b):
+        if a.y > b.y:
+            return "down"
+        else:
+            return "up"
+
 
     @staticmethod
     def calculate_max_min(objects):
@@ -89,6 +96,41 @@ class Track:
                 crossed = True
         return not crossed
 
+    def position_in_net(self, net):
+        pos = []
+        for pif in self.track:
+            if pif.y < net.y - net.height / 2:
+                pos.append('over')
+            elif pif.y > net.y + net.height / 2:
+                pos.append('under')
+            else:
+                pos.append('middle')
+        if len(pos) == 0:
+            return None
+        elif len(pos) == 1:
+            return pos[0]
+        else:
+            return 'cross'
+
+
+    def get_direction_changes(self):
+        directions = []
+        if len(self.track) == 1:
+            return 0
+        else:
+            for i in range(1, len(self.track)):
+                directions.append(PositionInFrame.get_direction(self.track[i-1], self.track[i]))
+            changes = 0
+            init = directions[0]
+            for dir in directions:
+                if dir != init:
+                    changes += 1
+                    init = dir
+            return changes
+
+
+
+
 
     def get_pif(self, frame_number):
         pass
@@ -101,7 +143,8 @@ class Track:
 
     def density(self):
         if len(self.track) > 0:
-            return self.distance() / len(self.track)
+            density = self.distance() / len(self.track)
+            return density
         else:
             return 0
 
