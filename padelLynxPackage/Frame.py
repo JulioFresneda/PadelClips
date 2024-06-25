@@ -55,6 +55,11 @@ class Frame:
             if obj.tag == old:
                 obj.tag = new
 
+    def update_player_position(self, tag, x, y):
+        for obj in self.objects:
+            if obj.tag == tag:
+                obj.x = x
+                obj.y = y
 
     @staticmethod
     def merge_frame_list(list_a, list_b):

@@ -16,19 +16,19 @@ class Inference:
         ball_model = self.ball_model(source, stream=True, half=False, imgsz=1920, save=False, save_frames=False, show_conf=True,
                         verbose=False, show_labels=True, line_width=4, save_txt=True, save_conf=True)
 
-        player_model = self.players_model.track(source, stream=True, half=False, imgsz=1920, save=False, save_frames=False,
+        player_model = self.players_model.track(source, stream=True, half=False, imgsz=1920, save=True, save_frames=False,
                                      show_conf=True,
                                      verbose=False, show_labels=True, line_width=4, save_txt=False, save_conf=False)
 
         print("Inferencing ball...")
         ball_df, _ = self.inference_to_df(ball_model)
         print("Inferencing players and net...")
-        #players_df, players_ft = self.inference_to_df(player_model, add_features=True)
+        players_df, players_ft = self.inference_to_df(player_model, add_features=True)
 
         ball_df.to_excel(os.path.join(output_folder, "ball_inference.xlsx"), index=False)
-        #players_df.to_excel(os.path.join(output_folder, "players_inference.xlsx"), index=False)
-        #players_ft = {f'{tag}': features for tag, features in zip(players_ft['tags'], players_ft['features'])}
-        #np.savez_compressed(os.path.join(output_folder, "players_inference_features.npz"), **players_ft)
+        players_df.to_excel(os.path.join(output_folder, "players_inference.xlsx"), index=False)
+        players_ft = {f'{tag}': features for tag, features in zip(players_ft['tags'], players_ft['features'])}
+        np.savez_compressed(os.path.join(output_folder, "players_inference_features.npz"), **players_ft)
 
 
     def add_features(self, df, image):
@@ -127,6 +127,6 @@ model_ball = "/home/juliofgx/PycharmProjects/padelLynx/models/ball/weights/best.
 model_players = "/home/juliofgx/PycharmProjects/padelLynx/models/players/weights/best.pt"
 inference = Inference(model_ball, model_players)
 
-source = "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_segment3.mp4"
-inference.inference(source, "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/", conf=0.25)
+source = "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_prueba2.mp4"
+inference.inference(source, "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/prueba2", conf=0.25)
 

@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler
 
+from padelLynxPackage import aux
 from padelLynxPackage.Frame import Frame, Label
 from padelLynxPackage.Player import *
 import random
@@ -19,13 +20,17 @@ from padelLynxPackage.PositionTracker import PositionTracker
 import numpy as np
 import ast
 
+
+
 class Game:
     def __init__(self, frames, fps, player_features):
         self.frames = frames
         self.player_features = player_features
 
-        #self.players = self.initialize_players()
-        #self.tag_players_in_frames()
+        self.players = self.initialize_players()
+        self.tag_players_in_frames()
+        self.smooth_players_tags()
+
 
         self.fps = int(fps)
         self.detect_net()
@@ -34,8 +39,24 @@ class Game:
 
 
 
-        self.ball_playtime.plot_tracks_with_net_and_players(self.ball_playtime.closed_tracks, frame_start=0, frame_end=1000)
+        self.ball_playtime.plot_tracks_with_net_and_players(self.ball_playtime.closed_tracks, frame_start=0)
 
+
+
+    def smooth_players_tags(self):
+
+
+        player_pos = {'A':[], 'B':[], 'C':[], 'D':[]}
+        player_idx = {'A': [], 'B': [], 'C': [], 'D': []}
+        for frame in self.frames:
+            for player in frame.players():
+                player_pos[player.tag].append((player.x, player.y))
+                player_idx[player.tag].append(frame.frame_number)
+
+        for playertag in player_pos.keys():
+            smoothed = aux.apply_kalman_filter(player_pos[playertag])
+            for s, fn in zip(smoothed, player_idx[playertag]):
+                self.frames[fn].update_player_position(playertag, s[0], s[1])
 
 
     def get_player_features(self, tag):
@@ -102,6 +123,10 @@ class Game:
             if i%100 == 0:
                 print("Tagging frame " + str(i) + " out of " + str(len(self.frames)), end='\r')
             self.tag_players_in_frame(frame)
+            for player in frame.players():
+                if player.tag != 'A' and player.tag != 'B' and player.tag != 'C' and player.tag != 'D':
+                    frame.objects.remove(player)
+
 
 
     def initialize_players(self):

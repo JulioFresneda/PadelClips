@@ -7,6 +7,7 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from sklearn.model_selection import train_test_split
 from PIL import Image, ImageDraw
 from padelLynxPackage.Game import *
+from pykalman import KalmanFilter
 def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 10, real_count=False):
     # Create the output folder if it doesn't exist
     if not os.path.exists(output_folder):
@@ -58,7 +59,22 @@ def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 
 #video_to_frames(video_path, output_folder)
 
 
+def apply_kalman_filter(positions):
+    initial_state = positions[0]
+    observation_covariance = np.eye(2)  # Assuming small error in observation
+    transition_covariance = np.eye(2) * 0.03  # Assuming players generally move slightly
+    transition_matrix = np.eye(2)
 
+    kf = KalmanFilter(
+        initial_state_mean=initial_state,
+        initial_state_covariance=observation_covariance,
+        observation_covariance=observation_covariance,
+        transition_covariance=transition_covariance,
+        transition_matrices=transition_matrix,
+    )
+
+    kalman_positions, _ = kf.smooth(positions)
+    return kalman_positions
 
 
 def plot_bounding_box(image, annotation_list, class_id_to_name_mapping, savepath):

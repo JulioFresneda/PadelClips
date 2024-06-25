@@ -1,8 +1,12 @@
+from datetime import timedelta
+
+
+
 from padelLynxPackage.Track import *
 import matplotlib
 from padelLynxPackage.Frame import *
 from collections import defaultdict
-
+from padelLynxPackage import aux
 
 class PositionTracker:
     def __init__(self, frames, fps, net):
@@ -15,7 +19,10 @@ class PositionTracker:
 
         self.manage_tracks()
 
+        #self.smooth_tracks()
+
         self.tag_frames()
+
 
         self.playtime = self.generate_playtime()
 
@@ -36,7 +43,22 @@ class PositionTracker:
         self.points = self.generate_points()
 
         # self.plot_tracks(self.closed_tracks, frame_start=41550, frame_end=42600, print_globes=False)
-        self.plot_tracks_with_net(self.closed_tracks, frame_start=41550, frame_end=42600)
+        #self.plot_tracks_with_net(self.closed_tracks, frame_start=41550, frame_end=42600)
+
+
+
+    def smooth_tracks(self):
+
+        for track in self.closed_tracks:
+            if len(track.track) > 0:
+                smooth = []
+                for pif in track.track:
+                    smooth.append((pif.x, pif.y))
+                smooth = aux.apply_kalman_filter(smooth)
+                for s, pif in zip(smooth, track.track):
+                    pif.x = s[0]
+                    pif.y = s[1]
+
 
     def get_tracks_between_frames(self, start, end, include_partial=True):
         result = []
@@ -613,46 +635,97 @@ class PositionTracker:
 
         return s_ball, s_track
 
-    def plot_tracks_with_net_and_players(self, tracks, frame_start=-1, frame_end=float('inf')):
-        matplotlib.use('TkAgg')  # Use the appropriate backend
-        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)  # Create two subplots sharing the x-axis
+    def get_player_position_over_time(self, tag, axis = 'y', start=0, end=float('inf')):
+        player = []
+        fn = []
 
-        # First plot (Tracks)
+        if end == float('inf'):
+            frames = self.frames[start:]
+        else:
+            frames = self.frames[start:end]
+        for frame in frames:
+            for p in frame.players():
+                if p.tag == tag:
+                    if axis == 'y':
+                        player.append(1 - p.y)
+                    elif axis == 'x':
+                        player.append(p.x)
+
+                    fn.append(frame.frame_number)
+
+        return player, fn
+
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    from datetime import timedelta
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    def plot_tracks_with_net_and_players(self, tracks, frame_start=0, frame_end=float('inf')):
+        matplotlib.use('TkAgg')  # Use the appropriate backend
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)
+
+        # Define a helper function to convert frame number to seconds
+        def frame_to_seconds(frame_number):
+            return (frame_number - frame_start) / self.fps
+
+        # Format function for times on x-axis
+        def format_seconds(seconds):
+            hours, remainder = divmod(seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+        # Plot Y positions of ball and players on ax1
         for track in tracks:
             frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
             y_positions = [1 - pif.y for pif in track.track if frame_start <= pif.frame_number <= frame_end]
-
             if frame_numbers:
-                ax1.plot(frame_numbers, y_positions, marker='o',
-                         label=f'Track starting at frame {track.track[0].frame_number}', color='green')
+                seconds = [frame_to_seconds(fn) for fn in frame_numbers]
+                ax1.plot(seconds, y_positions, marker='o',
+                         label=f'Track from frame {track.track[0].frame_number}', color='green')
 
-        ax1.set_xlabel('Frame Number')
-        ax1.set_ylabel('Y Position of Ball')
-        ax1.set_title('Track of Ball Y Positions Over Time')
-        ax1.set_xlim(left=frame_start, right=frame_end)  # Set the x-axis limits
-        # ax1.legend()
-        ax1.grid(True)
+        player_a, fn_a = self.get_player_position_over_time('A', 'y', frame_start, frame_end)
+        player_b, fn_b = self.get_player_position_over_time('B', 'y', frame_start, frame_end)
+        ax1.plot([frame_to_seconds(fn) for fn in fn_a], player_a, marker='x', label='Player A', color='red')
+        ax1.plot([frame_to_seconds(fn) for fn in fn_b], player_b, marker='x', label='Player B', color='yellow')
+        player_c, fn_c = self.get_player_position_over_time('C', 'y', frame_start, frame_end)
+        player_d, fn_d = self.get_player_position_over_time('D', 'y', frame_start, frame_end)
+        ax1.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player A', color='blue')
+        ax1.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player B', color='black')
 
-        # Add a new line with a fixed y value, e.g., y=0.5, across the full x range
         ax1.axhline(y=(1 - self.net.y) + self.net.height / 2, color='blue', label='Net (Sup)')
         ax1.axhline(y=(1 - self.net.y) - self.net.height / 2, color='blue', label='Net (Inf)')
 
-        # Create secondary x-axis for frame numbers
-        ax2 = ax1.twiny()
-        ax2.set_xlabel('Time in Seconds')
-        ax2.set_xlim(left=frame_start / self.fps, right=frame_end / self.fps)
-        ax2.set_xticks(ax1.get_xticks() / self.fps)
+        ax1.set_xlabel('Time (hh:mm:ss)')
+        ax1.set_ylabel('Y Position')
+        ax1.set_title('Ball and Player Y Positions Over Time')
+        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
+        ax1.grid(True)
+
+        # Plot X positions of ball and players on ax2
+        for track in tracks:
+            frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            x_positions = [pif.x for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            if frame_numbers:
+                seconds = [frame_to_seconds(fn) for fn in frame_numbers]
+                ax2.plot(seconds, x_positions, marker='o',
+                         label=f'Track from frame {track.track[0].frame_number}', color='green')
+
+        player_a, fn_a = self.get_player_position_over_time('A', 'x', frame_start, frame_end)
+        player_b, fn_b = self.get_player_position_over_time('B', 'x', frame_start, frame_end)
+        ax2.plot([frame_to_seconds(fn) for fn in fn_a], player_a, marker='x', label='Player A', color='red')
+        ax2.plot([frame_to_seconds(fn) for fn in fn_b], player_b, marker='x', label='Player B', color='yellow')
+        player_c, fn_c = self.get_player_position_over_time('C', 'x', frame_start, frame_end)
+        player_d, fn_d = self.get_player_position_over_time('D', 'x', frame_start, frame_end)
+        ax2.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player A', color='blue')
+        ax2.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player B', color='black')
+
+        ax2.set_xlabel('Time (hh:mm:ss)')
+        ax2.set_ylabel('X Position')
+        ax2.set_title('Ball and Player X Positions Over Time')
+        ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
         ax2.grid(True)
-
-        colors = [
-            'green' if frame.tag == 'point' else 'red' if frame.tag == 'mess' else 'yellow' if frame.tag == 'break' else 'blue'
-            for frame in self.frames]
-
-        ax3.vlines(range(len(self.frames)), 0, 1, colors=colors)
-        ax3.set_xlabel('Frame Number')
-        ax3.set_yticks([])
-        ax3.set_title('Track Coverage')
-        ax3.grid(True)
 
         plt.tight_layout()
         plt.show()
