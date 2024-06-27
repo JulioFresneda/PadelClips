@@ -34,7 +34,10 @@ class Game:
 
         self.fps = int(fps)
         self.detect_net()
-        self.ball_playtime = self.track_ball()
+        self.points = self.track_ball()
+
+
+
         self.longest_points(10)
 
 
@@ -82,14 +85,18 @@ class Game:
 
     def longest_points(self, top_n):
         top_x_lists = []
-        for pt, kind in self.ball_playtime.playtime.items():
-            if kind == 'point':
-                top_x_lists.append(pt)
+        for point in self.points:
 
-        sorted_keys = sorted(top_x_lists, key=lambda x: abs(x[0] - x[1]), reverse=True)
+            top_x_lists.append(point)
 
-        for i, top in enumerate(sorted_keys[:top_n]):
-            print("Game " + str(i) + ": " + self.frame_to_timestamp(top[0]) + " -> " + self.frame_to_timestamp(top[1]))
+        sorted_keys = sorted(top_x_lists, key=lambda x: abs(x.first_frame() - x.last_frame()), reverse=True)
+
+        print("Game duration: " + self.frame_to_timestamp(self.frames[-1].frame_number))
+
+        list_sorted = sorted_keys if len(sorted_keys) <= top_n else sorted_keys[:top_n]
+
+        for i, top in enumerate(list_sorted):
+            print("Game " + str(i) + ": " + self.frame_to_timestamp(top.first_frame()) + " -> " + self.frame_to_timestamp(top.last_frame()))
 
     def frame_to_timestamp(self, frame_number):
         # Calculate total seconds
@@ -115,8 +122,8 @@ class Game:
 
 
     def track_ball(self):
-        self.position_tracker = PositionTracker(self.frames, self.fps, self.net)
-        return self.position_tracker
+        points = PositionTracker(self.frames, self.fps, self.net)
+        return points.points
 
     def tag_players_in_frames(self):
         for i, frame in enumerate(self.frames):

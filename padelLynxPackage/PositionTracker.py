@@ -7,6 +7,7 @@ import matplotlib
 from padelLynxPackage.Frame import *
 from collections import defaultdict
 from padelLynxPackage import aux
+import numpy as np
 
 class PositionTracker:
     def __init__(self, frames, fps, net):
@@ -42,8 +43,10 @@ class PositionTracker:
 
         self.points = self.generate_points()
 
+
+
         # self.plot_tracks(self.closed_tracks, frame_start=41550, frame_end=42600, print_globes=False)
-        #self.plot_tracks_with_net(self.closed_tracks, frame_start=41550, frame_end=42600)
+        self.plot_tracks_with_net(self.points, frame_start=00)
 
 
 
@@ -215,7 +218,21 @@ class PositionTracker:
         return merged_frames
 
     def generate_points(self):
-        pass
+        playtime = [point for point in self.playtime.keys() if self.playtime[point] == 'point']
+        point_tracks = []
+        for point in playtime:
+            start = point[0]
+            end = point[1]
+
+            track = Track()
+            for frame_n in range(start, end+1):
+                for old_track in self.closed_tracks:
+                    for pif in old_track.track:
+                        if pif.frame_number == frame_n:
+                            track.add_pif(pif)
+            point_tracks.append(track)
+        return point_tracks
+
 
     def clean_playtime(self):
         keys = list(self.playtime.keys())
@@ -350,11 +367,11 @@ class PositionTracker:
         clean = self.clean_tracks(self.closed_tracks)
         self.closed_tracks = clean
 
-        # self.plot_tracks(self.closed_tracks, frame_start=3600, frame_end=9000)
 
-        tracks_with_globe = self.detect_globes(self.closed_tracks)
-        self.closed_tracks = tracks_with_globe
-        self.globes = [track for track in self.closed_tracks if track.globe]
+
+        #tracks_with_globe = self.detect_globes(self.closed_tracks)
+        #self.closed_tracks = tracks_with_globe
+        #self.globes = [track for track in self.closed_tracks if track.globe]
 
         # self.plot_tracks([track for track in self.closed_tracks if track.static is False])
 
@@ -434,6 +451,10 @@ class PositionTracker:
         self.remove_short_tracks(clean)
         self.remove_static_balls(clean, minimum_length=3)
         self.remove_short_tracks(clean)
+
+        for track in clean.copy():
+            if len(track.track) == 0:
+                clean.remove(track)
         #self.remove_high_density_tracks(clean)
 
         # self.remove_short_tracks(tracks, minimum_length=3)
@@ -730,12 +751,13 @@ class PositionTracker:
         plt.tight_layout()
         plt.show()
 
-    def plot_tracks_with_net(self, tracks, frame_start=-1, frame_end=float('inf')):  # Adding frame_rate parameter
+    def plot_tracks_with_net(self, tracks, frame_start=-1, frame_end=float('inf'), fps=30):
+        if frame_end == float('inf'):
+            frame_end = self.frames[-1].frame_number
 
         matplotlib.use('TkAgg')  # Use the appropriate backend
-        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)  # Create two subplots sharing the x-axis
+        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)  # Reintroduce ax3 for the second plot
 
-        # First plot (Tracks)
         for track in tracks:
             frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
             y_positions = [1 - pif.y for pif in track.track if frame_start <= pif.frame_number <= frame_end]
@@ -747,27 +769,39 @@ class PositionTracker:
         ax1.set_xlabel('Frame Number')
         ax1.set_ylabel('Y Position of Ball')
         ax1.set_title('Track of Ball Y Positions Over Time')
-        ax1.set_xlim(left=frame_start, right=frame_end)  # Set the x-axis limits
-        # ax1.legend()
+        ax1.set_xlim(left=frame_start, right=frame_end)
         ax1.grid(True)
 
-        # Add a new line with a fixed y value, e.g., y=0.5, across the full x range
         ax1.axhline(y=(1 - self.net.y) + self.net.height / 2, color='blue', label='Net (Sup)')
         ax1.axhline(y=(1 - self.net.y) - self.net.height / 2, color='blue', label='Net (Inf)')
 
+        # Function to format seconds into HH:MM:SS
+        def format_time(seconds):
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
         # Create secondary x-axis for frame numbers
         ax2 = ax1.twiny()
-        ax2.set_xlabel('Time in Seconds')
-        ax2.set_xlim(left=frame_start / self.fps, right=frame_end / self.fps)
-        ax2.set_xticks(ax1.get_xticks() / self.fps)
+        ax2.set_xlabel('Time in HH:MM:SS')
+        frame_ticks = np.linspace(frame_start, frame_end, num=10)  # Create 10 ticks from start to end frame
+        time_ticks = frame_ticks / fps
+        time_labels = [format_time(t) for t in time_ticks]
+        ax2.set_xlim(left=frame_start / fps, right=frame_end / fps)
+        ax2.set_xticks(time_ticks)
+        ax2.set_xticklabels(time_labels)
         ax2.grid(True)
 
-        colors = ['green' if frame.tag == 'point' else 'red' if frame.tag == 'mess' else 'yellow' if frame.tag == 'break' else 'blue' for frame in self.frames]
-
-
-        ax3.vlines(range(len(self.frames)), 0, 1, colors=colors)
+        # Plot ax3 with whatever data is relevant (e.g., track coverage or some other data)
+        # Example: Populate ax3 similarly, assuming 'colors' array or function is defined
+        if hasattr(self, 'frames'):
+            colors = [
+                'green' if frame.tag == 'point' else 'red' if frame.tag == 'mess' else 'yellow' if frame.tag == 'break' else 'blue'
+                for frame in self.frames]
+            ax3.vlines(range(len(self.frames)), 0, 1, colors=colors)
         ax3.set_xlabel('Frame Number')
-        ax3.set_yticks([])
+        ax3.set_ylabel('Coverage')
         ax3.set_title('Track Coverage')
         ax3.grid(True)
 
