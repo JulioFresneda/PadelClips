@@ -14,6 +14,7 @@ from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResamp
 from padelLynxPackage import aux
 from padelLynxPackage.Frame import Frame, Label
 from padelLynxPackage.Player import *
+from padelLynxPackage.Point import *
 import random
 
 from padelLynxPackage.PositionTracker import PositionTracker
@@ -34,7 +35,7 @@ class Game:
 
         self.fps = int(fps)
         self.detect_net()
-        self.points = self.track_ball()
+        self.points = self.cook_points()
 
 
 
@@ -42,8 +43,14 @@ class Game:
 
 
 
-        self.ball_playtime.plot_tracks_with_net_and_players(self.ball_playtime.closed_tracks, frame_start=0)
+    def cook_points(self):
+        tracks = self.track_ball()
+        Point.net = self.net
+        Point.frames = self.frames
+        Point.players = self.players
 
+        for track in tracks:
+            point = Point(track)
 
 
     def smooth_players_tags(self):

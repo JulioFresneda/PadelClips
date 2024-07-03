@@ -48,7 +48,7 @@ class PositionTracker:
         # self.plot_tracks(self.closed_tracks, frame_start=41550, frame_end=42600, print_globes=False)
         self.plot_tracks_with_net(self.points, frame_start=00)
 
-
+        self.plot_tracks_with_net_and_players(self.points, frame_start=0)
 
     def smooth_tracks(self):
 
