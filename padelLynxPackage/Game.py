@@ -11,17 +11,18 @@ import matplotlib.pyplot as plt
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler
 
-from padelLynxPackage import aux
 from padelLynxPackage.Frame import Frame, Label
-from padelLynxPackage.Player import *
-from padelLynxPackage.Point import *
+from padelLynxPackage.GameStats import GameStats
+from padelLynxPackage.Object import PlayerTemplate, Player, PlayerPosition
+from padelLynxPackage.Point import Point
+from padelLynxPackage.aux import apply_kalman_filter
 import random
 
 from padelLynxPackage.PositionTracker import PositionTracker
 import numpy as np
 import ast
 
-
+from moviepy.editor import VideoFileClip, concatenate_videoclips
 
 class Game:
     def __init__(self, frames, fps, player_features):
@@ -30,18 +31,111 @@ class Game:
 
         self.players = self.initialize_players()
         self.tag_players_in_frames()
+
+
         self.smooth_players_tags()
+        for frame in self.frames:
+            Player.position_players(frame.players())
+        self.fill_players_out_of_camera()
+
+
 
 
         self.fps = int(fps)
         self.detect_net()
         self.points = self.cook_points()
 
+        gameStats = GameStats(self.frames, self.points, self.net)
+        gameStats.print_game_stats()
+
+    def get_points_video(self, video_path, output_path, margin = 90):
+        video = VideoFileClip(video_path)
+
+        # Convert frame numbers to seconds
+        fps = video.fps
+        clips = []
+
+        clip_ranges = []
+        for point in self.points:
+            ff = point.first_frame() - margin
+            ff = 0 if ff < 0 else ff
+            lf = point.last_frame() + margin if point != self.points[-1] else point.last_frame()
+            clip_ranges.append((ff, lf))
+
+        for start_frame, end_frame in clip_ranges:
+            start_time = start_frame / fps
+            end_time = end_frame / fps
+            clip = video.subclip(start_time, end_time)
+            clips.append(clip)
+
+        # Concatenate all clips
+        final_clip = concatenate_videoclips(clips)
+
+        # Write the result to a file
+        final_clip.write_videofile(output_path, codec='libx264')
 
 
-        self.longest_points(10)
+    def fill_players_out_of_camera(self):
+
+        if len(self.frames[0].players()) < 4:
+            break_loop = False
+
+            for i in range(len(self.frames)):
+                if break_loop:
+                    break
+                if len(self.frames[i].players()) == 4:
+                    players = self.frames[i].players()
+                    break_loop = True
+                    for j in range(i):
+                        for p in players:
+                            if not self.frames[j].has_player(p.tag):
+                                if p.position == PlayerPosition.OVER_LEFT:
+                                    x = 0.0
+                                    y = 0.0
+                                elif p.position == PlayerPosition.OVER_RIGHT:
+                                    x = 1.0
+                                    y = 0.0
+                                elif p.position == PlayerPosition.UNDER_LEFT:
+                                    x = 0.0
+                                    y = 1.0
+                                elif p.position == PlayerPosition.UNDER_RIGHT:
+                                    x = 1.0
+                                    y = 1.0
+
+                                _p = Player(Label.PLAYER.value, x, y, 0.0, 0.0, None, p.tag)
+                                _p.tag_position(p.position)
+                                self.frames[j].objects.append(_p)
+
+                                Player.position_players(self.frames[j].players())
 
 
+
+
+
+
+        for i in range(len(self.frames)):
+            if len(self.frames[i].players()) < 4 and len(self.frames[i-1].players()) == 4:
+                players = self.frames[i-1].players()
+                for p in players:
+                    if not self.frames[i].has_player(p.tag):
+                        if p.position == PlayerPosition.OVER_LEFT:
+                            x = 0.0
+                            y = 0.0
+                        elif p.position == PlayerPosition.OVER_RIGHT:
+                            x = 1.0
+                            y = 0.0
+                        elif p.position == PlayerPosition.UNDER_LEFT:
+                            x = 0.0
+                            y = 1.0
+                        elif p.position == PlayerPosition.UNDER_RIGHT:
+                            x = 1.0
+                            y = 1.0
+
+                        _p = Player(Label.PLAYER.value, x, y, 0.0, 0.0, None, p.tag)
+                        _p.tag_position(p.position)
+                        self.frames[i].objects.append(_p)
+
+                        Player.position_players(self.frames[i].players())
 
     def cook_points(self):
         tracks = self.track_ball()
@@ -49,30 +143,31 @@ class Game:
         Point.frames = self.frames
         Point.players = self.players
 
+        points = []
         for track in tracks:
             point = Point(track)
-
+            points.append(point)
+        return points
 
     def smooth_players_tags(self):
 
-
-        player_pos = {'A':[], 'B':[], 'C':[], 'D':[]}
+        player_pos = {'A': [], 'B': [], 'C': [], 'D': []}
         player_idx = {'A': [], 'B': [], 'C': [], 'D': []}
         for frame in self.frames:
             for player in frame.players():
                 player_pos[player.tag].append((player.x, player.y))
                 player_idx[player.tag].append(frame.frame_number)
 
+
+
         for playertag in player_pos.keys():
-            smoothed = aux.apply_kalman_filter(player_pos[playertag])
+            smoothed = apply_kalman_filter(player_pos[playertag])
             for s, fn in zip(smoothed, player_idx[playertag]):
                 self.frames[fn].update_player_position(playertag, s[0], s[1])
-
 
     def get_player_features(self, tag):
         pf = self.player_features[str(int(tag))]
         return pf
-
 
     def detect_net(self):
         best_net_frame = self.find_frame_with_average_confidence(label=Label.NET, num_objects=1)
@@ -93,7 +188,6 @@ class Game:
     def longest_points(self, top_n):
         top_x_lists = []
         for point in self.points:
-
             top_x_lists.append(point)
 
         sorted_keys = sorted(top_x_lists, key=lambda x: abs(x.first_frame() - x.last_frame()), reverse=True)
@@ -103,7 +197,9 @@ class Game:
         list_sorted = sorted_keys if len(sorted_keys) <= top_n else sorted_keys[:top_n]
 
         for i, top in enumerate(list_sorted):
-            print("Game " + str(i) + ": " + self.frame_to_timestamp(top.first_frame()) + " -> " + self.frame_to_timestamp(top.last_frame()))
+            print(
+                "Game " + str(i) + ": " + self.frame_to_timestamp(top.first_frame()) + " -> " + self.frame_to_timestamp(
+                    top.last_frame()))
 
     def frame_to_timestamp(self, frame_number):
         # Calculate total seconds
@@ -119,14 +215,11 @@ class Game:
 
         return timestamp
 
-
-
     def __str__(self):
         print("Game: " + str(len(self.frames)) + " frames")
 
     def __repr__(self):  # This makes it easier to see the result when printing the list
         return f"Game({str(len(self.frames))})"
-
 
     def track_ball(self):
         points = PositionTracker(self.frames, self.fps, self.net)
@@ -134,7 +227,7 @@ class Game:
 
     def tag_players_in_frames(self):
         for i, frame in enumerate(self.frames):
-            if i%100 == 0:
+            if i % 100 == 0:
                 print("Tagging frame " + str(i) + " out of " + str(len(self.frames)), end='\r')
             self.tag_players_in_frame(frame)
             for player in frame.players():
@@ -144,18 +237,20 @@ class Game:
 
 
     def initialize_players(self):
-        self.most_representative_frame_players = self.find_frame_with_average_confidence(label=Label.PLAYER, num_objects=4)
+        self.most_representative_frame_players = self.find_frame_with_average_confidence(label=Label.PLAYER,
+                                                                                         num_objects=4)
         players = []
-        idx_to_names = {0: "A", 1:"B", 2:"C", 3:"D"}
+        idx_to_names = {0: "A", 1: "B", 2: "C", 3: "D"}
         for idx, mr_player in enumerate(self.most_representative_frame_players.players()):
             mr_player_tag = mr_player.tag
 
             mr_player_features = self.get_player_features(mr_player_tag)
-            game_player = Player(idx_to_names[idx], mr_player_features)
+            game_player = PlayerTemplate(idx_to_names[idx], mr_player_features)
             players.append(game_player)
 
         return players
-    def find_frame_with_average_confidence(self, label: Label, num_objects = 1):
+
+    def find_frame_with_average_confidence(self, label: Label, num_objects=1):
         best_frame = None
         best_average_confidence = 0.0
 
@@ -176,7 +271,6 @@ class Game:
                     best_frame = frame
 
         return best_frame
-
 
     def tag_players_in_frame(self, frame: Frame):
         """
@@ -200,11 +294,10 @@ class Game:
         for obj in frame.players():
             players_from_frame.append(obj)
 
-
         for tag in tags.keys():
             for obj in players_from_frame:
                 player_in_frame_ft = self.get_player_features(obj.tag)
-                dist = Player.features_distance(tags[tag].template_features, player_in_frame_ft)
+                dist = PlayerTemplate.features_distance(tags[tag].template_features, player_in_frame_ft)
                 pairs[(tag, obj.tag)] = dist
 
         while len(pairs.keys()) > 0:
@@ -224,11 +317,7 @@ class Game:
                 elif idx == pair[1]:
                     pairs.pop(pair)
 
-
         for match in matches:
             frame.update_player_tag(match[1], match[0])
-
-
-
 
         return matches

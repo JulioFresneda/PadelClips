@@ -2,11 +2,12 @@ import cv2
 from IPython.display import Image  # for displaying images
 import random
 import shutil
+import numpy as np
 
 from moviepy.video.io.VideoFileClip import VideoFileClip
 from sklearn.model_selection import train_test_split
 from PIL import Image, ImageDraw
-from padelLynxPackage.Game import *
+import os
 from pykalman import KalmanFilter
 def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 10, real_count=False):
     # Create the output folder if it doesn't exist
@@ -236,3 +237,15 @@ def cut_video(video, start, end, output):
 
     # Write the result to a file
     cut_video.write_videofile(output, codec='libx264')
+
+
+def frame_to_seconds(frame_number, fps):
+    return (frame_number) / fps
+
+
+# Format function for times on x-axis
+def format_seconds(frame_number, fps):
+    seconds = frame_to_seconds(frame_number, fps)
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"

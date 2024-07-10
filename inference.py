@@ -127,6 +127,6 @@ model_ball = "/home/juliofgx/PycharmProjects/padelLynx/models/ball/weights/best.
 model_players = "/home/juliofgx/PycharmProjects/padelLynx/models/players/weights/best.pt"
 inference = Inference(model_ball, model_players)
 
-source = "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_prueba2.mp4"
-inference.inference(source, "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/prueba2", conf=0.25)
+source = "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/padel5_segment3.mp4"
+inference.inference(source, "/home/juliofgx/PycharmProjects/padelLynx/dataset/padel5/segment3", conf=0.25)
 

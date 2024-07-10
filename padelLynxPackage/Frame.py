@@ -1,51 +1,39 @@
 from enum import Enum
 import os, re
+
+from padelLynxPackage.Object import Object, Player, Label
 from padelLynxPackage.aux import *
 import pandas as pd
 from collections import defaultdict
 
-class Label(Enum):
-    BALL = 0
-    PLAYER = 1
-    NET = 2
-class Object:
 
 
-    def __init__(self, class_label, x_center, y_center, width, height, conf, tag = None):
-        self.class_label = class_label
-        self.class_label_name = Label(class_label).name
-        self.x = x_center
-        self.y = y_center
-        self.width = width
-        self.height = height
-        self.size = width*height
-        self.conf = conf
-        self.tag = tag
-
-
-
-    def set_tag(self, tag):
-        self.tag = tag
-
-    def __str__(self):
-        print("Object " + self.class_label_name)
-
-    def __repr__(self):  # This makes it easier to see the result when printing the list
-        return f"Object({self.class_label_name})"
-
-    def get_position(self):
-        return (self.x, self.y, self.width, self.height)
 
 
 class Frame:
-    def __init__(self, frame_number, frame_path, yolo = []):
+    def __init__(self, frame_number, frame_path, yolo=[]):
         self.frame_number = frame_number
         self.frame_path = frame_path
         self.objects = yolo
 
+    def has_player(self, tag):
+        for player in self.players():
+            if player.tag == tag:
+                return True
+        return False
 
-    def players(self):
-        return [obj for obj in self.objects if obj.class_label == 1]
+    def player(self, tag):
+        for player in self.players():
+            if player.tag == tag:
+                return player
+        return None
+    def players(self, positions=None):
+        if positions is None:
+            return [obj for obj in self.objects if obj.class_label == 1]
+        else:
+            objs = [obj for obj in self.objects if obj.class_label == 1]
+
+            return [ obj for obj in objs if obj.position in positions]
 
     def balls(self):
         return [obj for obj in self.objects if obj.class_label == 0]
@@ -73,27 +61,28 @@ class Frame:
         return bigger
 
     @staticmethod
-    def load_from_excel(ball_excel_path, players_excel_path, mapping = {'ball':{0:Label.BALL}, 'players':{0:Label.NET, 1:Label.PLAYER}}):
+    def load_from_excel(ball_excel_path, players_excel_path,
+                        mapping={'ball': {0: Label.BALL}, 'players': {0: Label.NET, 1: Label.PLAYER}}):
         df_ball = pd.read_excel(ball_excel_path)
         df_players = pd.read_excel(players_excel_path)
-
 
         frames = []
 
         frame_info = defaultdict(list)
         for _, row in df_ball.iterrows():
-            frame_info[int(row['frame'])].append(Object(mapping['ball'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf']))
+            frame_info[int(row['frame'])].append(
+                Object(mapping['ball'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf']))
 
         for _, row in df_players.iterrows():
-            frame_info[int(row['frame'])].append(Object(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'], tag=row['id']))
-
-
+            frame_info[int(row['frame'])].append(
+                Player(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'],
+                       tag=row['id']))
 
         # Determine the range of frame numbers
         max_frame = int(max(frame_info.keys()))
 
         for frame_number in range(max_frame + 1):
-            if frame_number%100 == 0:
+            if frame_number % 100 == 0:
                 print("Loading frame " + str(frame_number) + "/" + str(max_frame), end='\r')
             if frame_number in frame_info:
                 frame = Frame(frame_number, None)
@@ -107,15 +96,10 @@ class Frame:
             else:
                 frames.append(Frame(frame_number, None))
 
-
-
         return frames
 
-
-
-
     @staticmethod
-    def load_frames(yolo_path, frames_path = None, mapping = {0:Label.BALL}):
+    def load_frames(yolo_path, frames_path=None, mapping={0: Label.BALL}):
 
         yolo_files = {}
         frames = []
@@ -126,16 +110,14 @@ class Frame:
         for filename in os.listdir(yolo_path):
             # Check if the file ends with .jpg
 
-            #frame_name = filename[:-4] + ".jpg"
+            # frame_name = filename[:-4] + ".jpg"
             # You can now use this new filename to create a text file or rename, etc.
             # For demonstration, let's just print the new filename
             if frames_path != None:
-                #frames.append(os.path.join(frames_path, frame_name))
+                # frames.append(os.path.join(frames_path, frame_name))
                 pass
             else:
                 frame_img_path.append(None)
-
-
 
             match = number_pattern.search(filename.split('_')[-1])
             if match:
@@ -145,17 +127,14 @@ class Frame:
 
             yolo_files[int(number)] = os.path.join(yolo_path, filename)
 
-
-
         frame_numbers = list(yolo_files.keys())
         max_frames = max(frame_numbers)
 
-        for i in range(max_frames+1):
+        for i in range(max_frames + 1):
             if i in frame_numbers:
                 frames.append(Frame(i, None, Frame.read_yolo_txt(yolo_files[i], mapping)))
             else:
-                frames.append(Frame(i,None,[]))
-
+                frames.append(Frame(i, None, []))
 
         return frames
 
@@ -192,11 +171,8 @@ class Frame:
             pass
         return detections
 
-
     def add_object(self, object: Object):
         self.objects.append(object)
-
-
 
     def __str__(self):
         return "Frame " + str(self.frame_number)
@@ -219,4 +195,3 @@ class Vector:
         self.time = second_b - second_a
 
         self.vertical_direction = self.Direction.UP if self.y > 0 else self.Direction.DOWN
-

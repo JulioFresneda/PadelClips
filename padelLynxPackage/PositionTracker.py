@@ -739,14 +739,16 @@ class PositionTracker:
         ax2.plot([frame_to_seconds(fn) for fn in fn_b], player_b, marker='x', label='Player B', color='yellow')
         player_c, fn_c = self.get_player_position_over_time('C', 'x', frame_start, frame_end)
         player_d, fn_d = self.get_player_position_over_time('D', 'x', frame_start, frame_end)
-        ax2.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player A', color='blue')
-        ax2.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player B', color='black')
+        ax2.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player C', color='blue')
+        ax2.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player D', color='black')
 
         ax2.set_xlabel('Time (hh:mm:ss)')
         ax2.set_ylabel('X Position')
         ax2.set_title('Ball and Player X Positions Over Time')
         ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
         ax2.grid(True)
+
+        plt.legend()
 
         plt.tight_layout()
         plt.show()
