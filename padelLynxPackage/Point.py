@@ -26,12 +26,20 @@ class Point:
     players = None
 
     def __init__(self, track: Track):
-        self.track = track
-        self.shots = self.track_to_shots()
+        if len(track.track) > 0:
+            self.track = track
+            self.shots = self.track_to_shots()
 
-        self.tag_shots(self.tagger_inflexion)
+            self.tag_shots(self.tagger_inflexion)
 
-        self.print_shots()
+            self.print_shots()
+        else:
+            self.track = []
+            self.shots = []
+
+    def merge(self, point):
+        self.track.track += point.track.track
+        self.shots = self.shots + point.shots
 
     def __len__(self):
         return len(self.shots)
@@ -155,24 +163,28 @@ class Point:
     def track_to_shots(self, min_length=3):
         shots = []
         buffer = []
-        initial_pos = self.position_over_the_net(self.track.track[0].y, Point.net)
+        if len(self.track.track) > 0:
+            initial_pos = self.position_over_the_net(self.track.track[0].y, Point.net)
 
-        for pif in self.track.track:
-            pif_pos = self.position_over_the_net(pif.y, Point.net)
-            if pif_pos == initial_pos or initial_pos == 'middle' or pif_pos == 'middle' and initial_pos == 'under':
-                buffer.append(pif)
-                if initial_pos == 'middle':
+            for pif in self.track.track:
+                pif_pos = self.position_over_the_net(pif.y, Point.net)
+                if pif_pos == initial_pos or initial_pos == 'middle' or pif_pos == 'middle' and initial_pos == 'under':
+                    buffer.append(pif)
+                    if initial_pos == 'middle':
+                        initial_pos = self.position_over_the_net(pif.y, Point.net)
+
+                else:
+                    shots.append(Shot(buffer, position=initial_pos))
+                    buffer = [pif]
                     initial_pos = self.position_over_the_net(pif.y, Point.net)
-
-            else:
+                    if initial_pos == 'middle':
+                        initial_pos = 'under'
+            if len(buffer) > 0:
                 shots.append(Shot(buffer, position=initial_pos))
-                buffer = [pif]
-                initial_pos = self.position_over_the_net(pif.y, Point.net)
-                if initial_pos == 'middle':
-                    initial_pos = 'under'
-        if len(buffer) > 0:
-            shots.append(Shot(buffer, position=initial_pos))
-        return shots
+            return shots
+        else:
+            print(shots)
+            return shots
 
     def position_over_the_net(self, y, net):
         net_upper_pos = net.y - net.height / 2

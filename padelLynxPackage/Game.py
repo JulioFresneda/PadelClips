@@ -1,8 +1,10 @@
 import os, re
 from enum import Enum
 import numpy as np
+from PIL import ImageFont, Image, ImageDraw
 
 from dtaidistance import dtw
+from moviepy.video.VideoClip import ImageClip
 from sklearn.cluster import KMeans, DBSCAN
 
 import numpy as np
@@ -22,7 +24,9 @@ from padelLynxPackage.PositionTracker import PositionTracker
 import numpy as np
 import ast
 
-from moviepy.editor import VideoFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip, concatenate_videoclips, TextClip, CompositeVideoClip
+import os
+import subprocess
 
 class Game:
     def __init__(self, frames, fps, player_features):
@@ -34,8 +38,7 @@ class Game:
 
 
         self.smooth_players_tags()
-        for frame in self.frames:
-            Player.position_players(frame.players())
+        self.tag_position_in_players()
         self.fill_players_out_of_camera()
 
 
@@ -44,35 +47,71 @@ class Game:
         self.fps = int(fps)
         self.detect_net()
         self.points = self.cook_points()
+        #self.merge_points_too_close()
 
-        gameStats = GameStats(self.frames, self.points, self.net)
-        gameStats.print_game_stats()
+        self.gameStats = GameStats(self.frames, self.points, self.net)
+        self.gameStats.print_game_stats()
 
-    def get_points_video(self, video_path, output_path, margin = 90):
-        video = VideoFileClip(video_path)
+    def merge_points_too_close(self, margin=60):
+        points = self.points.copy()
+        points_merged = []
 
-        # Convert frame numbers to seconds
-        fps = video.fps
-        clips = []
+        buffer = points[0]
 
-        clip_ranges = []
-        for point in self.points:
-            ff = point.first_frame() - margin
-            ff = 0 if ff < 0 else ff
-            lf = point.last_frame() + margin if point != self.points[-1] else point.last_frame()
-            clip_ranges.append((ff, lf))
+        for i in range(1, len(points)):
+            diff = points[i].first_frame() - points[i - 1].last_frame()
+            if diff <= margin:
+                buffer.merge(points[i])
 
-        for start_frame, end_frame in clip_ranges:
-            start_time = start_frame / fps
-            end_time = end_frame / fps
-            clip = video.subclip(start_time, end_time)
-            clips.append(clip)
+            else:
+                points_merged.append(buffer)
+                buffer = points[i]
 
-        # Concatenate all clips
-        final_clip = concatenate_videoclips(clips)
+        self.points = points_merged
 
-        # Write the result to a file
-        final_clip.write_videofile(output_path, codec='libx264')
+    def get_players(self):
+        return self.players.copy()
+
+    def tag_position_in_players(self):
+
+        for tplayer in self.players:
+            tplayer.set_position_oocam(self.frames[0].player(tplayer.tag).x, self.frames[0].player(tplayer.tag).y)
+
+        for frame in self.frames:
+            Player.position_players(frame.players())
+
+            for tplayer in self.players:
+                player = frame.player(tplayer.tag)
+                oocam_x = tplayer.position_oocam[0]
+                oocam_y = tplayer.position_oocam[1]
+                try:
+
+                    if player.position == PlayerPosition.OVER_RIGHT:
+                        if player.x > oocam_x:
+                            oocam_x = player.x
+                        if player.y < oocam_y:
+                            oocam_y = player.y
+                    elif player.position == PlayerPosition.OVER_LEFT:
+                        if player.x < oocam_x:
+                            oocam_x = player.x
+                        if player.y < oocam_y:
+                            oocam_y = player.y
+                    elif player.position == PlayerPosition.UNDER_RIGHT:
+                        if player.x > oocam_x:
+                            oocam_x = player.x
+                        if player.y > oocam_y:
+                            oocam_y = player.y
+                    elif player.position == PlayerPosition.UNDER_LEFT:
+                        if player.x < oocam_x:
+                            oocam_x = player.x
+                        if player.y > oocam_y:
+                            oocam_y = player.y
+                except:
+                    pass
+
+
+                tplayer.set_position_oocam(oocam_x, oocam_y)
+
 
 
     def fill_players_out_of_camera(self):
@@ -89,20 +128,9 @@ class Game:
                     for j in range(i):
                         for p in players:
                             if not self.frames[j].has_player(p.tag):
-                                if p.position == PlayerPosition.OVER_LEFT:
-                                    x = 0.0
-                                    y = 0.0
-                                elif p.position == PlayerPosition.OVER_RIGHT:
-                                    x = 1.0
-                                    y = 0.0
-                                elif p.position == PlayerPosition.UNDER_LEFT:
-                                    x = 0.0
-                                    y = 1.0
-                                elif p.position == PlayerPosition.UNDER_RIGHT:
-                                    x = 1.0
-                                    y = 1.0
+                                tplayer = [player for player in self.players if player.tag == p.tag][0]
 
-                                _p = Player(Label.PLAYER.value, x, y, 0.0, 0.0, None, p.tag)
+                                _p = Player(Label.PLAYER.value, tplayer.position_oocam[0], tplayer.position_oocam[1], 0.0, 0.0, None, p.tag)
                                 _p.tag_position(p.position)
                                 self.frames[j].objects.append(_p)
 
@@ -118,18 +146,10 @@ class Game:
                 players = self.frames[i-1].players()
                 for p in players:
                     if not self.frames[i].has_player(p.tag):
-                        if p.position == PlayerPosition.OVER_LEFT:
-                            x = 0.0
-                            y = 0.0
-                        elif p.position == PlayerPosition.OVER_RIGHT:
-                            x = 1.0
-                            y = 0.0
-                        elif p.position == PlayerPosition.UNDER_LEFT:
-                            x = 0.0
-                            y = 1.0
-                        elif p.position == PlayerPosition.UNDER_RIGHT:
-                            x = 1.0
-                            y = 1.0
+                        x, y = 0, 0
+                        for tp in self.players:
+                            if tp.tag == p.tag:
+                                x, y = tp.position_oocam[0], tp.position_oocam[1]
 
                         _p = Player(Label.PLAYER.value, x, y, 0.0, 0.0, None, p.tag)
                         _p.tag_position(p.position)
@@ -226,6 +246,7 @@ class Game:
         return points.points
 
     def tag_players_in_frames(self):
+
         for i, frame in enumerate(self.frames):
             if i % 100 == 0:
                 print("Tagging frame " + str(i) + " out of " + str(len(self.frames)), end='\r')
@@ -233,6 +254,7 @@ class Game:
             for player in frame.players():
                 if player.tag != 'A' and player.tag != 'B' and player.tag != 'C' and player.tag != 'D':
                     frame.objects.remove(player)
+
 
 
 
@@ -245,8 +267,10 @@ class Game:
             mr_player_tag = mr_player.tag
 
             mr_player_features = self.get_player_features(mr_player_tag)
-            game_player = PlayerTemplate(idx_to_names[idx], mr_player_features)
+            game_player = PlayerTemplate(idx_to_names[idx], mr_player_features, self.most_representative_frame_players.frame_number, mr_player)
             players.append(game_player)
+
+
 
         return players
 

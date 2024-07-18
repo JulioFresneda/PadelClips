@@ -87,9 +87,15 @@ class Player(Object):
 
 
 class PlayerTemplate:
-    def __init__(self, tag, template_features):
+    def __init__(self, tag, template_features, frame_number, object):
         self.tag = tag
         self.template_features = template_features
+        self.frame_number = frame_number
+        self.player_object = object
+        self.position_oocam = None
+
+    def set_position_oocam(self, x, y):
+        self.position_oocam = (x, y)
 
     def __str__(self):
         print("Player " + str(self.tag))

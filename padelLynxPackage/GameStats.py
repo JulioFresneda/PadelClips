@@ -2,6 +2,7 @@ from padelLynxPackage.Point import Point
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 # Match
 # - Top 10 longest points - OK
 # - Heatmap for each player
@@ -57,7 +58,8 @@ class GameStats:
             top = self.top_x_points_where_player_ran_the_most(3, player.tag)
 
             r, b = self.rights_and_backhands(player.tag)
-            print("\nRights: " + str(r) + ", backhands: " + str(b) + ", backhands percentage: " + str(b/r*100) + "%")
+            print(
+                "\nRights: " + str(r) + ", backhands: " + str(b) + ", backhands percentage: " + str(b / r * 100) + "%")
 
         print("\n\n------- Trophies -------")
         print("\nPlayer that ran the most: " + self.player_that_ran_the_most().tag)
@@ -69,13 +71,24 @@ class GameStats:
         distances = self.player_distances_to_the_net()
         print("\nPlayer that went most to the net: " + distances[0][0])
 
-        #self.players_heatmap()
-
-
-
+        # self.players_heatmap()
 
     def top_x_longest_points(self, x):
-        top = sorted(self.points, key=len, reverse=True)[:x]
+        top = sorted(self.points, key=lambda p: p.last_frame()-p.first_frame(), reverse=True)
+        if len(top) > x:
+            top = top[:x]
+        return top
+
+    def top_x_more_shots(self, x):
+        top = sorted(self.points, key=lambda p: len(p), reverse=True)
+        if len(top) > x:
+            top = top[:x]
+        return top
+
+    def top_x_points_more_meters_ran(self, x):
+        top = sorted(self.points, key=lambda point: self.overall_meters_ran(point), reverse=True)
+        if len(top) > x:
+            top = top[:x]
         return top
 
     def average_shots_per_point(self):
@@ -86,6 +99,12 @@ class GameStats:
     def top_x_points_more_shots_by_player(self, x, player_tag):
         top = sorted(self.points, key=lambda point: point.how_many_shots_by_player(player_tag), reverse=True)[:x]
         return top
+
+    def overall_meters_ran(self, point=None):
+        meters = 0
+        for p in Point.players:
+            meters += self.meters_ran(p.tag, point)
+        return meters
 
     def meters_ran(self, player_tag, point=None):
         meters = 0.0
@@ -133,16 +152,25 @@ class GameStats:
         top = sorted(Point.players, key=lambda player: self.meters_ran(player.tag), reverse=True)[:1]
         return top[0]
 
-    def player_shots(self):
+    def total_shots(self):
+        total = 0
+        for point in self.points:
+            total += len(point.shots)
+        return total
+
+    def player_shots(self, player_tag=None):
         shots = {}
         for player in Point.players:
             shots[player.tag] = 0
 
         for point in self.points:
-            for player_tag in shots.keys():
-                shots[player_tag] += point.how_many_shots_by_player(player_tag)
+            for pt in shots.keys():
+                shots[pt] += point.how_many_shots_by_player(pt)
 
-        return sorted(shots.items(), key=lambda item: item[1])
+        if player_tag is None:
+            return sorted(shots.items(), key=lambda item: item[1])
+        else:
+            return shots[player_tag]
 
     def player_distances_to_the_net(self):
         distances = {}
@@ -160,16 +188,16 @@ class GameStats:
                 shots_to_divide += 1
         return total_distance / shots_to_divide
 
-
+    def total_points(self):
+        return len(self.points)
 
     def players_heatmap(self):
-        center = (self.net.x, self.net.y + self.net.height/2)
+        center = (self.net.x, self.net.y + self.net.height / 2)
         coords = []
         for frame in self.frames:
             for player in frame.players():
                 coords.append((player.x, player.y))
         self.generate_heatmap(coords, center)
-
 
     def adjust_coordinates(self, coords, center):
         """Adjust coordinates based on the center position."""

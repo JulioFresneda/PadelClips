@@ -9,6 +9,69 @@ from sklearn.model_selection import train_test_split
 from PIL import Image, ImageDraw
 import os
 from pykalman import KalmanFilter
+from PIL import Image
+
+def extract_frame_from_video(video_path, frame_number, output_image_path):
+    """
+    Extracts a frame from the video at the given frame number and saves it as an image.
+
+    :param video_path: Path to the input video file
+    :param frame_number: The frame number to extract
+    :param output_image_path: Path to save the extracted frame image
+    """
+    # Open the video file
+    video_capture = cv2.VideoCapture(video_path)
+
+    # Check if video opened successfully
+    if not video_capture.isOpened():
+        print("Error: Could not open video.")
+        return
+
+    # Set the frame position
+    video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+
+    # Read the frame
+    success, frame = video_capture.read()
+
+    if success:
+        # Save the frame as an image file
+        cv2.imwrite(output_image_path, frame)
+        print(f"Frame {frame_number} extracted and saved to {output_image_path}")
+    else:
+        print(f"Error: Could not read frame {frame_number}")
+
+    # Release the video capture object
+    video_capture.release()
+def crop_and_save_image(input_image_path, output_image_path, x, y, height, width):
+    """
+    Crops the image based on the given x, y (center), height, and width values (between 0 and 1) and saves the cropped image.
+
+    :param input_image_path: Path to the input image
+    :param output_image_path: Path to save the cropped image
+    :param x: X coordinate (between 0 and 1) of the center of the crop
+    :param y: Y coordinate (between 0 and 1) of the center of the crop
+    :param height: Height (between 0 and 1) of the crop
+    :param width: Width (between 0 and 1) of the crop
+    """
+    # Open the input image
+    image = Image.open(input_image_path)
+    image_width, image_height = image.size
+
+    # Calculate the center in pixels
+    center_x = x * image_width
+    center_y = y * image_height
+
+    # Calculate the crop box in pixels
+    left = center_x - (width * image_width) / 2
+    upper = center_y - (height * image_height) / 2
+    right = center_x + (width * image_width) / 2
+    lower = center_y + (height * image_height) / 2
+
+    # Perform the crop
+    cropped_image = image.crop((left, upper, right, lower))
+
+    # Save the cropped image
+    cropped_image.save(output_image_path)
 def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 10, real_count=False):
     # Create the output folder if it doesn't exist
     if not os.path.exists(output_folder):
