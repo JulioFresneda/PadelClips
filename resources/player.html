@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Profile</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden; // This hides scrollbars if any content overflows these dimensions
+            position: relative;
+            display: flex;  // Ensures that children can be flex centered
+            justify-content: center;  // Center horizontally
+            align-items: center;  // Center vertically
+            background-color: #f0f0f0; // Just to make the area visible, can be removed
+        }
+        .player-card {
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 600px;
+            border-radius: 8px;
+        }
+        .player-image img {
+            border-radius: 8px;
+            max-width: 100%;  // Ensures the image is never wider than its container
+            max-height: 500px; // Limits the image height
+            height: auto; // Keeps the aspect ratio
+            display: block; // Removes any extra space below the image
+            margin: 0 auto;
+        }
+        .player-info {
+            margin-top: 20px;
+        }
+        .info-item {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        .info-title {
+            font-weight: bold;
+        }
+        .container {
+            width: 1920px;
+            height: 1080px;
+            display: flex;  // Applying flex to align children if needed
+            justify-content: center;
+            align-items: center;
+            background-color: #fff; // Different background to see it clearly
+        }
+    </style>
+</head>
+<body>
+    <div class="player-card">
+        <div class="player-image">
+            <img src="../dataset/padel5/B.png" alt="Player Image" id="player-image">
+        </div>
+        <div class="player-info">
+            <h2 id="player-name">Player Name</h2>
+            <p class="info-item"><span class="info-title">Position:</span> <span id="position">Position</span></p>
+            <p class="info-item"><span class="info-title">Meters Ran:</span> <span id="meters-ran">0000m</span></p>
+            <p class="info-item"><span class="info-title">Shots:</span> <span id="shots">0</span></p>
+            <p class="info-item"><span class="info-title">Globes:</span> <span id="globes">0</span></p>
+            <p class="info-item"><span class="info-title">Smashes:</span> <span id="smashes">0</span></p>
+        </div>
+    </div>
+</body>
+</html>
