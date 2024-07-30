@@ -44,10 +44,15 @@ class Frame:
                 obj.tag = new
 
     def update_player_position(self, tag, x, y):
+        added = False
         for obj in self.objects:
             if obj.tag == tag:
                 obj.x = x
                 obj.y = y
+                added = True
+        if not added:
+            self.add_object(Player(Label.PLAYER.value, x, y, 0, 0, 0.5, tag))
+
 
     @staticmethod
     def merge_frame_list(list_a, list_b):

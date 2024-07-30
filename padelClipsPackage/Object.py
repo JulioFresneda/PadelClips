@@ -1,14 +1,7 @@
 from enum import Enum
 
-import cv2
-import torch
-import torch.nn as nn
-import torchvision.models as models
-import torchvision.transforms as transforms
-from PIL import Image
-import numpy as np
-import matplotlib.pyplot as plt
 from scipy.spatial.distance import cosine
+
 
 class Label(Enum):
     BALL = 0

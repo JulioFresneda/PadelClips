@@ -8,7 +8,18 @@ class FramesController:
         self.frame_list = frame_list
         self.find_frame_templates()
 
+    def __len__(self):
+        return len(self.frame_list)
 
+
+
+    def get(self, index, index_end = None):
+        if index_end is None:
+            return self.frame_list[index]
+        else:
+            return self.frame_list[index:index_end]
+    def enumerate(self):
+        return enumerate(self.frame_list)
 
     def get_template_players(self):
         return self.template_players
@@ -49,21 +60,26 @@ class FramesController:
                 current_value = values[value_idx]
                 value_idx += 1
             new_values.append(current_value)
-
+        xd = new_values[12180:12182]
+        print(xd)
         return new_values
 
 
-    def smooth_player_tags(self, player_pos, player_idx, frame_number):
+    def smooth_player_tags(self, player_pos, player_idx, number_of_frames):
 
         fixed_player_pos = {}
         for player_tag in player_pos.keys():
-            fixed_player_pos[player_tag] = self.fill_missing_positions(player_idx[player_tag], player_pos[player_tag], frame_number)
-
+            fixed_player_pos[player_tag] = self.fill_missing_positions(player_idx[player_tag], player_pos[player_tag], number_of_frames)
         smoothed = {}
         for player_tag in player_pos.keys():
             print("Smoothing tag " + player_tag, end='\n')
             smoothed[player_tag] = apply_kalman_filter(fixed_player_pos[player_tag])
-
+            xd = smoothed[player_tag][12180:12182]
+            print(xd)
+        for tag in smoothed.keys():
+            for i, pos in enumerate(smoothed[tag]):
+                if pos is None:
+                    print(i)
         for i, frame in enumerate(self.frame_list):
             for player_tag in smoothed.keys():
                 frame.update_player_position(player_tag, smoothed[player_tag][i][0], smoothed[player_tag][i][1])

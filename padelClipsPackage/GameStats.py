@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 
 class GameStats:
     def __init__(self, frames, points, net):
-        self.frames = frames
+        self.frames_controller = frames
         self.points = points
         self.net = net
 
@@ -47,7 +47,7 @@ class GameStats:
         avg_shots_per_point = int(self.average_shots_per_point())
         print("\nAverage shots per point: " + str(avg_shots_per_point))
 
-        for player in Point.players:
+        for player in Point.game.players:
             print("\n\n------- Player stats: " + player.tag + " -------")
             print("\nTop 3 points with more shots by player")
             top_shots_by_player = self.top_x_points_more_shots_by_player(3, player.tag)
@@ -102,7 +102,7 @@ class GameStats:
 
     def overall_meters_ran(self, point=None):
         meters = 0
-        for p in Point.players:
+        for p in Point.game.players:
             meters += self.meters_ran(p.tag, point)
         return meters
 
@@ -111,10 +111,10 @@ class GameStats:
         last_pos = None
 
         if point is None:
-            frames_to_count = self.frames
+            frames_to_count = self.frames_controller.frame_list
         else:
             try:
-                frames_to_count = self.frames[point.first_frame():point.last_frame()]
+                frames_to_count = self.frames_controller.get(point.first_frame(),point.last_frame())
             except:
                 frames_to_count = []
 
@@ -138,7 +138,7 @@ class GameStats:
             for shot in shots:
                 fn = shot.inflection.frame_number
                 ball_x_pos = shot.inflection.x
-                player = self.frames[fn].player(player_tag)
+                player = self.frames_controller.get(fn).player(player_tag)
                 if player is not None:
                     player_x_pos = player.x
                     if ball_x_pos > player_x_pos:
@@ -149,7 +149,7 @@ class GameStats:
         return rights, backhands
 
     def player_that_ran_the_most(self):
-        top = sorted(Point.players, key=lambda player: self.meters_ran(player.tag), reverse=True)[:1]
+        top = sorted(Point.game.players, key=lambda player: self.meters_ran(player.tag), reverse=True)[:1]
         return top[0]
 
     def total_shots(self):
@@ -160,7 +160,7 @@ class GameStats:
 
     def player_shot_number(self, player_tag=None):
         shots = {}
-        for player in Point.players:
+        for player in Point.game.players:
             shots[player.tag] = 0
 
         for point in self.points:
@@ -187,7 +187,7 @@ class GameStats:
 
     def player_distances_to_the_net(self):
         distances = {}
-        for player in Point.players:
+        for player in Point.game.players:
             distances[player.tag] = self.average_player_distance_to_the_net(player.tag)
         return sorted(distances.items(), key=lambda item: item[1])
 
@@ -207,7 +207,7 @@ class GameStats:
     def players_heatmap(self):
         center = (self.net.x, self.net.y + self.net.height / 2)
         coords = []
-        for frame in self.frames:
+        for i, frame in self.frames_controller.enumerate():
             for player in frame.players():
                 coords.append((player.x, player.y))
         self.generate_heatmap(coords, center)
