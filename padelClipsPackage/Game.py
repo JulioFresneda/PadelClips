@@ -1,3 +1,5 @@
+import time
+
 from padelClipsPackage.Frame import Label
 from padelClipsPackage.FramesController import FramesController
 from padelClipsPackage.GameStats import GameStats
@@ -18,8 +20,9 @@ class Game:
         self.players = self.set_player_templates()
 
         # Tag frames
+        start_time = time.time()
         self.frames_controller.tag_frames(self.players, self.player_features)
-        print("Frames tagged.")
+        print(f"Frames tagged: {time.time() - start_time} seconds")
 
         # Set net
         self.set_net()

@@ -319,7 +319,7 @@ def json_points_to_video(points_json, input_video_path, output_video_path, from_
 
     for key, frames in points.items():
         print("Extracting point " + str(key), end='\r')
-        temp_clip_path = f"making/temp_clip_{key}.mp4"
+        temp_clip_path = f"//making/temp_clip_{key}.mp4"
         start = frames[0] - margin
         if start < 0:
             start = 0

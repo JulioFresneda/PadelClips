@@ -1,7 +1,7 @@
 from padelClipsPackage.Frame import Frame
 from padelClipsPackage.Object import Label, PlayerTemplate
 from padelClipsPackage.aux import apply_kalman_filter
-
+import time
 
 class FramesController:
     def __init__(self, frame_list):
