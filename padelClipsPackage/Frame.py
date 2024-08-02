@@ -83,7 +83,7 @@ class Frame:
         for _, row in df_players.iterrows():
             frame_info[int(row['frame'])].append(
                 Player(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'],
-                       tag=row['id']))
+                       tag=str(int(row['id']))))
 
         # Determine the range of frame numbers
         max_frame = int(max(frame_info.keys()))

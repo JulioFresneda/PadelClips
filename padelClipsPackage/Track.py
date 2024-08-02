@@ -69,7 +69,11 @@ class Track:
         self.globe = False
         self.variance_to_dynamic = 0.000005
         self.variance_distance = 5
-        self.quality_track = False
+
+
+
+
+
 
 
     def max_min(self):

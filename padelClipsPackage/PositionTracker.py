@@ -2,6 +2,7 @@ import matplotlib
 import numpy as np
 
 from padelClipsPackage.Track import *
+from padelClipsPackage.Visuals import Visuals
 
 
 class PositionTracker:
@@ -15,7 +16,12 @@ class PositionTracker:
         self.create_tracks()
         self.tag_frames()
 
+        vis = Visuals()
+        vis.plot_tracks(self.closed_tracks, self.frames_controller.frame_list, frame_end=7200, fps=60, net=self.net)
+
         self.playtime = self.generate_playtime()
+
+
 
         # reduced = False
         reduced = True
@@ -33,6 +39,8 @@ class PositionTracker:
         self.playtime = self.generate_playtime()
 
         self.points = self.generate_points()
+
+        Visuals.plot_points(self.closed_tracks, self.points, self.net, self.fps, end=7200)
 
         self.plot_tracks_with_net(self.closed_tracks, fps=self.fps)
         self.plot_tracks_with_net_and_players(self.closed_tracks)
@@ -220,8 +228,11 @@ class PositionTracker:
             self.track_ball(frame)
             self.close_tracks(frame.frame_number)
 
+
         clean = self.clean_tracks(self.closed_tracks)
         self.closed_tracks = clean
+
+
 
     def clean_tracks(self, tracks):
         clean = tracks.copy()
@@ -232,11 +243,6 @@ class PositionTracker:
         for track in clean.copy():
             if len(track.track) == 0:
                 clean.remove(track)
-        # self.remove_high_density_tracks(clean)
-
-        # self.remove_short_tracks(tracks, minimum_length=3)
-        # self.remove_shadow_tracks(tracks, margin=0)
-        # self.keep_valuable_tracks(tracks, percentage=0.25)
 
         return clean
 
@@ -310,18 +316,21 @@ class PositionTracker:
 
         distances = {}
         for ball in balls:
+            # Añadir a tracks ya abiertos
             for track in self.open_tracks:
                 distance = PositionInFrame.distance_to(PositionInFrame(ball.x, ball.y, None),
                                                        track.last_pif())
-
+                # Distancia maxima para añadir candidato
                 if max_distance > distance:
                     distances[(ball, track)] = distance
 
+        # Se calcula la distancia de los candidatos, y se elige el mas cercano
         while len(balls_to_track) > 0 and len(distances.keys()) > 0:
             s_ball, s_track = self.get_shortest(distances)
             s_track.add_pif(PositionInFrame(s_ball.x, s_ball.y, frame.frame_number))
             balls_to_track.remove(s_ball)
 
+        # NUEVOS Tracks
         for ball in balls_to_track:
             track = Track()
             track.add_pif(PositionInFrame(ball.x, ball.y, frame.frame_number))

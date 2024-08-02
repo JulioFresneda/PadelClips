@@ -3,6 +3,7 @@ from padelClipsPackage.Object import Label, PlayerTemplate
 from padelClipsPackage.aux import apply_kalman_filter
 import time
 
+
 class FramesController:
     def __init__(self, frame_list):
         self.frame_list = frame_list
@@ -11,7 +12,8 @@ class FramesController:
     def __len__(self):
         return len(self.frame_list)
 
-
+    def frame_tags(self):
+        return [frame.tag for frame in self.frame_list]
 
     def get(self, index, index_end = None):
         if index_end is None:
@@ -27,7 +29,7 @@ class FramesController:
     def tag_frames(self, players, player_features):
         player_pos = {'A': [], 'B': [], 'C': [], 'D': []}
         player_idx = {'A': [], 'B': [], 'C': [], 'D': []}
-        last_player_positions = {}
+
 
 
         for i, frame in enumerate(self.frame_list):
@@ -37,13 +39,14 @@ class FramesController:
 
             # Tag players
             self.tag_players_in_frame(frame, players, player_features)
+
             # Save position and idx to future
             for player in frame.players():
                 player_pos[player.tag].append((player.x, player.y))
                 player_idx[player.tag].append(i)
 
 
-        self.smooth_player_tags(player_pos, player_idx, len(self.frame_list))
+        return player_pos, player_idx
 
     def fill_missing_positions(self, index_positions, values, total_new_values):
         # Initialize new lists for the complete index and values
@@ -60,8 +63,7 @@ class FramesController:
                 current_value = values[value_idx]
                 value_idx += 1
             new_values.append(current_value)
-        xd = new_values[12180:12182]
-        print(xd)
+
         return new_values
 
 
@@ -74,8 +76,9 @@ class FramesController:
         for player_tag in player_pos.keys():
             print("Smoothing tag " + player_tag, end='\n')
             smoothed[player_tag] = apply_kalman_filter(fixed_player_pos[player_tag])
-            xd = smoothed[player_tag][12180:12182]
-            print(xd)
+
+
+
         for tag in smoothed.keys():
             for i, pos in enumerate(smoothed[tag]):
                 if pos is None:

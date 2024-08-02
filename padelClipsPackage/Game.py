@@ -8,21 +8,30 @@ from padelClipsPackage.Point import Point
 
 from padelClipsPackage.PositionTracker import PositionTracker
 from padelClipsPackage.Visuals import Visuals
-
+import rust_functions
 
 class Game:
     def __init__(self, frames, fps, player_features):
         self.net = None
         self.fps = int(fps)
         self.frames_controller = FramesController(frames)
+
+
         self.player_features = player_features
 
         self.players = self.set_player_templates()
 
         # Tag frames
         start_time = time.time()
-        self.frames_controller.tag_frames(self.players, self.player_features)
+        #player_pos, player_idx = self.frames_controller.tag_frames(self.players, self.player_features)
+
+        # RUST
+        player_features_dict = {str(int(key)): player_features[key] for key in player_features.files}
+        player_pos, player_idx = rust_functions.tag_frames(self.frames_controller.frame_list, self.players, player_features_dict)
         print(f"Frames tagged: {time.time() - start_time} seconds")
+
+        self.frames_controller.smooth_player_tags(player_pos, player_idx, len(self.frames_controller))
+
 
         # Set net
         self.set_net()
