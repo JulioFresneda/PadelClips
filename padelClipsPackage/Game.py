@@ -6,15 +6,17 @@ from padelClipsPackage.GameStats import GameStats
 from padelClipsPackage.Object import PlayerTemplate
 from padelClipsPackage.Point import Point
 
-from padelClipsPackage.PositionTracker import PositionTracker
+from padelClipsPackage.PositionTracker import PositionTracker, PositionTrackerV2
 from padelClipsPackage.Visuals import Visuals
-import rust_functions
+#import rust_functions
 
 class Game:
     def __init__(self, frames, fps, player_features):
         self.net = None
         self.fps = int(fps)
         self.frames_controller = FramesController(frames)
+
+        self.track_ball_v2()
 
 
         self.player_features = player_features
@@ -115,6 +117,10 @@ class Game:
 
     def __repr__(self):  # This makes it easier to see the result when printing the list
         return f"Game({str(len(self.frames_controller))})"
+
+    def track_ball_v2(self):
+        points = PositionTrackerV2(self.frames_controller, self.fps, self.net)
+        return points.points
 
     def track_ball(self):
         points = PositionTracker(self.frames_controller, self.fps, self.net)

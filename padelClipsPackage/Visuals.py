@@ -125,15 +125,18 @@ class Visuals:
         # Set the appropriate backend
         matplotlib.use('TkAgg')
 
+        if frame_end == float('inf'):
+            frame_end = frames[-1].frame_number
+
         # Create two subplots (one above the other)
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 20), sharex=True)
 
         # Plot y and x positions on the first subplot
         self.plot_y_positions(ax1, tracks, frame_start, frame_end, fps, False, net)
-        self.plot_x_positions(ax1, tracks, frame_start, frame_end, fps, False)
+        self.plot_x_positions(ax2, tracks, frame_start, frame_end, fps, False)
 
         # Plot vertical lines for tags on the second subplot
-        self.plot_frame_tags(ax2, frames, frame_start, frame_end)
+        #self.plot_frame_tags(ax2, frames, frame_start, frame_end)
 
         # Adjust layout and display the plot
         plt.tight_layout()
@@ -175,7 +178,7 @@ class Visuals:
             if frame_numbers:
                 seconds = [frame_to_seconds(fn, frame_start, fps) for fn in frame_numbers]
                 ax.plot(seconds, y_positions, marker='o',
-                         label=f'Track from frame {track.track[0].frame_number}', color=colors[i%5])
+                         label=f'Track {track.tag}', color=colors[i%5])
 
         if show_players:
             self.plot_players(ax, 'y', frame_start, frame_end)
@@ -189,6 +192,7 @@ class Visuals:
         ax.set_title('Ball and Player Y Positions Over Time')
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
         ax.grid(True)
+        ax.legend()
         return seconds
 
     def plot_x_positions(self, ax, tracks, frame_start, frame_end, fps, show_players):

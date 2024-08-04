@@ -15,10 +15,10 @@ from padelClipsPackage.ComposeVideo import ComposeVideo, points_to_json, shots_t
 
 
 
-ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_1/ball_inference.xlsx"
+ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/ball_inference.xlsx"
 players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_1/players_inference.xlsx"
 players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_1/players_inference_features.npz"
-video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_1/2set_1.mp4"
+video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/2set_2.mp4"
 
 frames = Frame.load_from_excel(ball_excel, players_excel, mapping={'ball': {0: Label.BALL}, 'players': {0: Label.NET, 1: Label.PLAYER}})
 print("Frames loaded.")

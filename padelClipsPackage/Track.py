@@ -63,12 +63,13 @@ class PositionInFrame:
 
 
 class Track:
-    def __init__(self):
+    def __init__(self, tag = None):
         self.track = []
         self.static = True
         self.globe = False
         self.variance_to_dynamic = 0.000005
         self.variance_distance = 5
+        self.tag = tag
 
 
 

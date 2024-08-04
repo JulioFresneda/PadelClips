@@ -1,3 +1,4 @@
+import math
 from enum import Enum
 import os, re
 
@@ -77,8 +78,9 @@ class Frame:
 
         frame_info = defaultdict(list)
         for _, row in df_ball.iterrows():
+            tag = None if math.isnan(row['id']) else int(row['id'])
             frame_info[int(row['frame'])].append(
-                Object(mapping['ball'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf']))
+                Object(mapping['ball'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'], tag=tag))
 
         for _, row in df_players.iterrows():
             frame_info[int(row['frame'])].append(

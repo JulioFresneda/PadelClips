@@ -5,6 +5,41 @@ from padelClipsPackage.Track import *
 from padelClipsPackage.Visuals import Visuals
 
 
+class PositionTrackerV2:
+    def __init__(self, frames_controller, fps, net):
+
+        self.fps = fps
+        self.frames_controller = frames_controller
+        self.net = net
+        self.tracks = self.load_tracks(delete_statics=False)
+        vis = Visuals()
+        vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=fps)
+        print(3)
+
+
+    def load_tracks(self, delete_statics = True):
+        tracks = {}
+        for i, frame in self.frames_controller.enumerate():
+            for ball in frame.balls():
+                if ball.tag not in tracks.keys():
+                    tracks[ball.tag] = []
+                tracks[ball.tag].append(PositionInFrame(ball.x, ball.y, frame.frame_number))
+
+        tracks_loaded = []
+        for tag, track in tracks.items():
+            new_track = Track(tag)
+            for pif in track:
+                new_track.add_pif(pif)
+
+            static = new_track.check_static()
+            if not static or static and not delete_statics:
+                tracks_loaded.append(new_track)
+
+        return tracks_loaded
+
+
+
+
 class PositionTracker:
     def __init__(self, frames_controller, fps, net):
         self.closed_tracks = []
