@@ -1,5 +1,6 @@
 import time
 
+
 from padelClipsPackage.Frame import Label
 from padelClipsPackage.FramesController import FramesController
 from padelClipsPackage.GameStats import GameStats
@@ -8,7 +9,7 @@ from padelClipsPackage.Point import Point
 
 from padelClipsPackage.PositionTracker import PositionTracker, PositionTrackerV2
 from padelClipsPackage.Visuals import Visuals
-#import rust_functions
+import rust_functions
 
 class Game:
     def __init__(self, frames, fps, player_features):

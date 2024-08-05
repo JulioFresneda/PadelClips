@@ -51,9 +51,9 @@ class Visuals:
         y_pos_val = []
 
         for track in tracks:
-            if track.first_frame() >= start and (end is None or track.last_frame() <= end):
-                y_pos_frn += [pif.frame_number for pif in track.track]
-                y_pos_val += [1 - pif.y for pif in track.track]
+            if track.start() >= start and (end is None or track.end() <= end):
+                y_pos_frn += [pif.frame_number for pif in track.pifs]
+                y_pos_val += [1 - pif.y for pif in track.pifs]
             #seconds = [frame_to_seconds(fn, 0) for fn in y_pos_frn]
         ax.plot(y_pos_frn, y_pos_val, marker='o',
                     label=f'All tracks', color='red')
@@ -68,9 +68,9 @@ class Visuals:
         ax.grid(True)
 
         for point in points:
-            if point.first_frame() >= start and (end is None or point.last_frame() <= end):
+            if point.start() >= start and (end is None or point.end() <= end):
 
-                highlight_track = [(fn, y) for fn, y in zip(y_pos_frn, y_pos_val) if point.first_frame() <= fn <= point.last_frame()]
+                highlight_track = [(fn, y) for fn, y in zip(y_pos_frn, y_pos_val) if point.start() <= fn <= point.end()]
                 if highlight_track:
                     h_sec, h_val = zip(*highlight_track)
                     ax.plot(h_sec, h_val, marker='o', color='green')
@@ -90,9 +90,9 @@ class Visuals:
         y_pos_val = []
 
         for track in tracks:
-            if track.first_frame() >= start and (end is None or track.last_frame() <= end):
-                y_pos_frn += [pif.frame_number for pif in track.track]
-                y_pos_val += [1 - pif.y for pif in track.track]
+            if track.start() >= start and (end is None or track.end() <= end):
+                y_pos_frn += [pif.frame_number for pif in track.pifs]
+                y_pos_val += [1 - pif.y for pif in track.pifs]
             # seconds = [frame_to_seconds(fn, 0) for fn in y_pos_frn]
         ax.plot(y_pos_frn, y_pos_val, marker='o',
                 label=f'All tracks', color='red')
@@ -173,8 +173,8 @@ class Visuals:
     def plot_y_positions(self, ax, tracks, frame_start, frame_end, fps, show_players, net):
         colors = ['green', 'yellow', 'red', 'blue', 'black']
         for i, track in enumerate(tracks):
-            frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
-            y_positions = [1 - pif.y for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            y_positions = [1 - pif.y for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             if frame_numbers:
                 seconds = [frame_to_seconds(fn, frame_start, fps) for fn in frame_numbers]
                 ax.plot(seconds, y_positions, marker='o',
@@ -197,12 +197,12 @@ class Visuals:
 
     def plot_x_positions(self, ax, tracks, frame_start, frame_end, fps, show_players):
         for track in tracks:
-            frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
-            x_positions = [pif.x for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            x_positions = [pif.x for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             if frame_numbers:
                 seconds = [frame_to_seconds(fn, frame_start, fps) for fn in frame_numbers]
                 ax.plot(seconds, x_positions, marker='o',
-                         label=f'Track from frame {track.track[0].frame_number}', color='green')
+                        label=f'Track from frame {track.pifs[0].frame_number}', color='green')
 
         if show_players:
             self.plot_players(ax, 'x', frame_start, frame_end)

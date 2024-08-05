@@ -11,10 +11,152 @@ class PositionTrackerV2:
         self.fps = fps
         self.frames_controller = frames_controller
         self.net = net
-        self.tracks = self.load_tracks(delete_statics=False)
+        # Load phase: Equivalence track-tag
+        self.tracks = self.load_tracks(delete_statics=True)
+        # Merge phase: Join consecutive tracks
+        self.tracks = self.merge_tracks()
+        # Split phase: Detect split conditions, like empty seconds, multiple non-static balls...
+        self.tracks = self.split_tracks()
+
+    def split_tracks(self):
+        # Conditions
+        #   - No balls windows
+        #   - Static ball windows
+        #   - Multiple balls windows
+        #   - Multiple inflexion points in same net position windows (Not for now)
+        # ORDER MATTERS!
+
         vis = Visuals()
-        vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=fps)
-        print(3)
+        vis.plot_tracks(self.tracks, self.frames_controller.frame_list, frame_end=3000, fps=60, net=self.net)
+
+        self.no_balls_moments()
+        self.clean_short_tracks()
+        vis = Visuals()
+        vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, net=self.net)
+
+
+        vis = Visuals()
+        vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, net=self.net)
+
+        # Low variance moments, like start/end of points
+        self.static_balls_moments(min_frames=120, min_diff_allowed = 0.025)
+        vis = Visuals()
+        vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, net=self.net)
+
+    def low_variance_moments(self, window=120, min_variance_allowed = 0.001):
+        low_var = {}
+        for track in self.tracks:
+            if len(track) > window:
+                low_variance = []
+                for i in range(len(track)-window):
+                    if PositionInFrame.calculate_variance(track.pifs[i:i+window]) < min_variance_allowed:
+                        low_variance.append((i, i+window))
+                low_variance = self.merge_moments(low_variance)
+                low_var[track] = low_variance
+
+
+
+        subtracks = []
+        for track, low_var_moments in low_var.items():
+            subtracks += Track.split_track(track, low_var_moments)
+
+        self.tracks = subtracks
+
+
+    def static_balls_moments(self, min_frames=60, min_diff_allowed = 0.0005):
+        static = {}
+        for track in self.tracks:
+            if len(track) > 1:
+                static_idx = []
+                last_y = track.pifs[0].y
+                start_static_fn = track.pifs[0].frame_number
+                end_static_fn = 0
+                counter = 0
+
+                for pif in track.pifs[1:]:
+                    if abs(pif.y - last_y) < min_diff_allowed:
+                        last_y = pif.y
+                        end_static_fn = pif.frame_number
+                        counter += 1
+                    else:
+                        last_y = pif.y
+                        if counter > min_frames:
+                            static_idx.append((start_static_fn, end_static_fn))
+                        start_static_fn = pif.frame_number
+                        counter = 0
+                static[track] = static_idx
+
+
+        subtracks = []
+        for track, static_moments in static.items():
+            subtracks += Track.split_track(track, static_moments)
+
+        self.tracks = subtracks
+
+
+
+    def clean_short_tracks(self, minimum=20):
+        self.tracks = [track for track in self.tracks if len(track) >= minimum]
+    def no_balls_moments(self, window=120):
+        tracks = sorted(self.tracks.copy(), key=lambda obj: obj.start())
+        no_balls = {}
+        for track in tracks:
+            if len(track) > 1:
+                no_balls_idx = []
+                last_fn = track.pifs[0].frame_number
+                for pif in track.pifs:
+                    if pif.frame_number - last_fn > window:
+                        no_balls_idx.append((last_fn, pif.frame_number))
+                    last_fn = pif.frame_number
+                no_balls[track] = no_balls_idx
+
+        subtracks = []
+        for track, no_balls_moments in no_balls.items():
+            subtracks += Track.split_track(track, no_balls_moments)
+
+        self.tracks = subtracks
+
+
+
+
+
+
+
+
+    def merge_moments(self, moments):
+        merged_moments = []
+
+        for interval in moments:
+            # If the merged_intervals list is empty or the current interval does not overlap with the last one, append it
+            if not merged_moments or merged_moments[-1][1] < interval[0]:
+                merged_moments.append(interval)
+            else:
+                # If there is an overlap, merge the current interval with the last one in the merged_intervals list
+                merged_moments[-1] = (merged_moments[-1][0], max(merged_moments[-1][1], interval[1]))
+        return merged_moments
+
+    def merge_tracks(self):
+            merged = []
+            track_list = sorted(self.tracks.copy(), key=lambda obj: obj.start())
+            pool = track_list.copy()
+
+            while len(pool) > 0:
+                to_merge = [pool[0]]
+                for track in pool[1:]:
+                    if track.start() >= to_merge[-1].end():
+                        to_merge.append(track)
+                merged_track = Track.join_tracks(to_merge, to_merge[0].tag)
+                merged.append(merged_track)
+                for track in to_merge:
+                    pool.remove(track)
+            return merged
+
+
+
+
+
+
+
 
 
     def load_tracks(self, delete_statics = True):
@@ -27,13 +169,20 @@ class PositionTrackerV2:
 
         tracks_loaded = []
         for tag, track in tracks.items():
-            new_track = Track(tag)
-            for pif in track:
-                new_track.add_pif(pif)
+            if tag is not None:
+                new_track = Track(tag)
+                for pif in track:
+                    new_track.add_pif(pif)
 
-            static = new_track.check_static()
-            if not static or static and not delete_statics:
-                tracks_loaded.append(new_track)
+                static = new_track.check_static_with_variance(minimum=60)
+                if not static or static and not delete_statics:
+                    tracks_loaded.append(new_track)
+            else:
+                for none_track in track:
+                    new_track = Track(None)
+                    new_track.add_pif(none_track)
+                    new_track.static = False
+                    tracks_loaded.append(new_track)
 
         return tracks_loaded
 
@@ -83,8 +232,8 @@ class PositionTracker:
     def get_tracks_between_frames(self, start, end, include_partial=True):
         result = []
         for track in self.closed_tracks:
-            if len(track.track) > 0:
-                if track.first_frame() > start and track.last_frame() < end:
+            if len(track.pifs) > 0:
+                if track.start() > start and track.end() < end:
                     result.append(track)
                 elif include_partial and (track.has_frame(start) or track.has_frame(end)):
                     result.append(track)
@@ -105,11 +254,11 @@ class PositionTracker:
 
         for point in points:
             tracks = self.get_tracks_between_frames(point[0], point[1], include_partial=True)
-            tracks = [track for track in tracks if len(track.track) > 0]
+            tracks = [track for track in tracks if len(track.pifs) > 0]
             megatrack = []
             for track in tracks:
-                pifs = track.track.copy()
-                for pif in track.track:
+                pifs = track.pifs.copy()
+                for pif in track.pifs:
                     if pif.frame_number < point[0] or pif.frame_number > point[1]:
                         pifs.remove(pif)
 
@@ -173,7 +322,7 @@ class PositionTracker:
             track = Track()
             for frame_n in range(start, end + 1):
                 for old_track in self.closed_tracks:
-                    for pif in old_track.track:
+                    for pif in old_track.pifs:
                         if pif.frame_number == frame_n:
                             track.add_pif(pif)
             point_tracks.append(track)
@@ -182,7 +331,7 @@ class PositionTracker:
     def get_tracks_by_frame(self, frame_number):
         tracks = []
         for track in self.closed_tracks:
-            if track.first_frame() <= frame_number <= track.last_frame():
+            if track.start() <= frame_number <= track.end():
                 tracks.append(track)
         return tracks
 
@@ -225,8 +374,8 @@ class PositionTracker:
         playtime = {}
         tracks_start_to_end = []
         for track in self.closed_tracks:
-            first = track.first_frame()
-            end = track.last_frame()
+            first = track.start()
+            end = track.end()
             if first is not None and end is not None:
                 tracks_start_to_end.append((first, end))
 
@@ -276,25 +425,25 @@ class PositionTracker:
         self.remove_short_tracks(clean)
 
         for track in clean.copy():
-            if len(track.track) == 0:
+            if len(track.pifs) == 0:
                 clean.remove(track)
 
         return clean
 
     def remove_static_balls(self, tracks, minimum_length=3, minimum_to_split=100):
         for track in tracks:
-            track.track = self.filter_consecutive_objects_with_min_count(track.track, min_count=minimum_length)
+            track.pifs = self.filter_consecutive_objects_with_min_count(track.pifs, min_count=minimum_length)
 
         tracks_copy = tracks.copy()
         index = []
         for track in tracks_copy:
-            for i, pif in enumerate(track.track):
-                if i > 0 and pif.frame_number - track.track[i - 1].frame_number >= minimum_to_split:
+            for i, pif in enumerate(track.pifs):
+                if i > 0 and pif.frame_number - track.pifs[i - 1].frame_number >= minimum_to_split:
                     index.append(i)
 
             index = sorted(set(index))
             # Add the start and end boundaries for slicing
-            track_splitted = [track.track[start:end] for start, end in zip([0] + index, index + [len(track.track)])]
+            track_splitted = [track.pifs[start:end] for start, end in zip([0] + index, index + [len(track.pifs)])]
             if len(track_splitted) > 1:
                 tracks.remove(track)
                 for newtrack in track_splitted:
@@ -333,14 +482,14 @@ class PositionTracker:
 
     def remove_short_tracks(self, tracks, minimum_length=3):
         to_remove = [track for track in tracks if
-                     len(track.track) <= minimum_length and abs(track.max_min()[1] - track.max_min()[0]) < 0.1]
+                     len(track.pifs) <= minimum_length and abs(track.max_min()[1] - track.max_min()[0]) < 0.1]
         for track in to_remove:
             tracks.remove(track)
 
     def close_tracks(self, frame_number, tolerance=5):
-        to_close = [track for track in self.open_tracks if track.last_frame() + tolerance < frame_number]
+        to_close = [track for track in self.open_tracks if track.end() + tolerance < frame_number]
         for track in to_close:
-            track.check_static()
+            #track.check_static()
             self.closed_tracks.append(track)
             self.open_tracks.remove(track)
 
@@ -423,12 +572,12 @@ class PositionTracker:
 
         # Plot Y positions of ball and players on ax1
         for track in tracks:
-            frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
-            y_positions = [1 - pif.y for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            y_positions = [1 - pif.y for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             if frame_numbers:
                 seconds = [frame_to_seconds(fn) for fn in frame_numbers]
                 ax1.plot(seconds, y_positions, marker='o',
-                         label=f'Track from frame {track.track[0].frame_number}', color='green')
+                         label=f'Track from frame {track.pifs[0].frame_number}', color='green')
 
         player_a, fn_a = self.get_player_position_over_time('A', 'y', frame_start, frame_end)
         player_b, fn_b = self.get_player_position_over_time('B', 'y', frame_start, frame_end)
@@ -450,12 +599,12 @@ class PositionTracker:
 
         # Plot X positions of ball and players on ax2
         for track in tracks:
-            frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
-            x_positions = [pif.x for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            x_positions = [pif.x for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             if frame_numbers:
                 seconds = [frame_to_seconds(fn) for fn in frame_numbers]
                 ax2.plot(seconds, x_positions, marker='o',
-                         label=f'Track from frame {track.track[0].frame_number}', color='green')
+                         label=f'Track from frame {track.pifs[0].frame_number}', color='green')
 
         player_a, fn_a = self.get_player_position_over_time('A', 'x', frame_start, frame_end)
         player_b, fn_b = self.get_player_position_over_time('B', 'x', frame_start, frame_end)
@@ -485,12 +634,12 @@ class PositionTracker:
         fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)  # Reintroduce ax3 for the second plot
 
         for track in tracks:
-            frame_numbers = [pif.frame_number for pif in track.track if frame_start <= pif.frame_number <= frame_end]
-            y_positions = [1 - pif.y for pif in track.track if frame_start <= pif.frame_number <= frame_end]
+            frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            y_positions = [1 - pif.y for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
 
             if frame_numbers:
                 ax1.plot(frame_numbers, y_positions, marker='o',
-                         label=f'Track starting at frame {track.track[0].frame_number}', color='green')
+                         label=f'Track starting at frame {track.pifs[0].frame_number}', color='green')
 
         ax1.set_xlabel('Frame Number')
         ax1.set_ylabel('Y Position of Ball')

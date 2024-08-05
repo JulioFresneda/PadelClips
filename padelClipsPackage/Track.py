@@ -64,10 +64,10 @@ class PositionInFrame:
 
 class Track:
     def __init__(self, tag = None):
-        self.track = []
+        self.pifs = []
         self.static = True
         self.globe = False
-        self.variance_to_dynamic = 0.000005
+        self.variance_to_dynamic = 0.0000025
         self.variance_distance = 5
         self.tag = tag
 
@@ -81,140 +81,39 @@ class Track:
         max = -1.0
         min = 2.0
 
-        for pif in self.track:
+        for pif in self.pifs:
             if pif.y > max:
                 max = pif.y
             if pif.y < min:
                 min = pif.y
         return max, min
 
-    def not_crossed_net(self, net, tolerance):
 
-        tail = self.track if len(self.track) <= tolerance else self.track[:-tolerance]
-
-        pos = tail[0].y
-        crossed = False
-        for pif in tail:
-            if pos < net.y - net.height/2 and pif.y > net.y + net.height/2:
-                crossed = True
-            elif pos > net.y + net.height/2 and pif.y < net.y - net.height/2:
-                crossed = True
-        return not crossed
-
-    def position_in_net(self, net):
-        pos = []
-        for pif in self.track:
-            if pif.y < net.y - net.height / 2:
-                pos.append('over')
-            elif pif.y > net.y + net.height / 2:
-                pos.append('under')
-            else:
-                pos.append('middle')
-        if len(pos) == 0:
-            return None
-        elif len(pos) == 1:
-            return pos[0]
-        else:
-            return 'cross'
-
-
-    def get_direction_changes(self):
-        directions = []
-        if len(self.track) == 1:
-            return 0
-        else:
-            for i in range(1, len(self.track)):
-                directions.append(PositionInFrame.get_direction(self.track[i-1], self.track[i]))
-            changes = 0
-            init = directions[0]
-            for dir in directions:
-                if dir != init:
-                    changes += 1
-                    init = dir
-            return changes
-
-
-
-
-
-    def get_pif(self, frame_number):
-        pass
-    def distance(self):
-        dist = 0.0
-        for i, pif in enumerate(self.track):
-            if i > 0:
-                dist += PositionInFrame.distance_to(self.track[i - 1], pif)
-        return dist
-
-    def density(self):
-        if len(self.track) > 0:
-            density = self.distance() / len(self.track)
-            return density
-        else:
-            return 0
-
-
-
-    def purge_static_subtracks(self):
-        if len(self.track) > self.variance_distance:
-            subtracks = [self.track[i:i + self.variance_distance] for i in
-                         range(0, len(self.track) - self.variance_distance)]
-
-            st_to_remove = []
-
-            for subtrack in subtracks:
-                variance = PositionInFrame.calculate_variance(subtrack)
-                if variance < self.variance_to_dynamic:
-                    st_to_remove.append(subtrack)
-
-            st_list = []
-            for st_tr in st_to_remove:
-                for pif in st_tr:
-                    if pif not in st_list:
-                        st_list.append(pif)
-
-            subtracks = self.split_and_remove(self.track.copy(), st_list)
-            return subtracks
-        return []
-
-    def split_and_remove(self, items, to_remove):
-        result = []  # This will hold all the sublists
-        current_sublist = []  # This holds the current sublist being constructed
-
-        for item in items:
-            if item in to_remove:
-                if current_sublist:  # Only add the sublist if it's not empty
-                    result.append(current_sublist)
-                    current_sublist = []  # Reset for the next sublist
-            else:
-                current_sublist.append(item)  # Add item to the current sublist
-
-        if current_sublist:  # Add the last sublist if not empty
-            result.append(current_sublist)
-
-        return result
-
-    def check_static(self):
-        if len(self.track) > 1:
+    def check_static_with_variance(self, minimum = 1):
+        if len(self.pifs) > minimum:
             # if len(self.track) < self.variance_distance:
-            variance = PositionInFrame.calculate_variance(self.track)
+            variance = PositionInFrame.calculate_variance(self.pifs)
             if variance > self.variance_to_dynamic:
                 self.static = False
+        else:
+            self.static = False
         return self.static
 
 
-    def last_frame(self):
-        if len(self.track) == 0:
-            return None
-        return self.track[-1].frame_number
 
-    def first_frame(self):
-        if len(self.track) == 0:
-            return None
-        return self.track[0].frame_number
+
+    def end(self):
+        if len(self.pifs) == 0:
+            return -1
+        return self.pifs[-1].frame_number
+
+    def start(self):
+        if len(self.pifs) == 0:
+            return -1
+        return self.pifs[0].frame_number
 
     def has_frame(self, frame_number):
-        for pif in self.track:
+        for pif in self.pifs:
             if pif.frame_number == frame_number:
                 return True
         return False
@@ -222,28 +121,65 @@ class Track:
 
 
     def last_pif(self):
-        if len(self.track) == 0:
+        if len(self.pifs) == 0:
             return None
-        return self.track[-1]
+        return self.pifs[-1]
 
     def add_pif(self, pif, check_static=False):
-        if len(self.track) == 0 or self.last_frame() < pif.frame_number:
-            self.track.append(pif)
+        if len(self.pifs) == 0 or self.end() < pif.frame_number:
+            self.pifs.append(pif)
             if check_static:
-                self.check_static()
-            self.check_quality()
+                self.check_static_with_variance()
             return True
         else:
             return False
 
-    def check_quality(self):
-        max, min = self.max_min()
-        if abs(max-min) > 0.3 and len(self.track) > 3:
-            self.quality_track = True
 
+    @staticmethod
+    def join_tracks(tracks, tag=None):
+        new_track = Track(tag)
+        for track in tracks:
+            for pif in track.pifs:
+                new_track.add_pif(pif)
+        return new_track
+
+    @staticmethod
+    def split_track(track, idx_list):
+
+        subtrack_start = 0
+
+        subtracks = []
+        for i in range(len(idx_list)):
+            subtrack = Track(tag=str(track.tag) + "_" + str(i))
+            for pif in track.pifs:
+                if pif.frame_number >= subtrack_start and pif.frame_number < idx_list[i][0]:
+                    subtrack.add_pif(pif)
+            subtracks.append(subtrack)
+            subtrack_start = idx_list[i][1]
+
+        subtrack = Track(tag=str(track.tag) + "_" + str(len(idx_list)))
+        for pif in track.pifs:
+            if pif.frame_number >= subtrack_start:
+                subtrack.add_pif(pif)
+        subtracks.append(subtrack)
+
+        return subtracks
+
+
+
+
+
+
+
+
+
+
+
+    def __len__(self):
+        return len(self.pifs)
     def __str__(self):
-        print("Track with" + str(len(self.track)) + " objects")
+        print("Track from " + str(self.start()) + " to " + str(self.end()) + " with " + str(len(self.pifs)) + " objects")
 
     def __repr__(self):  # This makes it easier to see the result when printing the list
-        return f"Track({str(len(self.track))} objects)"
+        return f"Track(from {str(self.start())} to {str(self.end())}, {str(len(self.pifs))} objects)"
 

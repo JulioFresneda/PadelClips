@@ -74,7 +74,7 @@ class GameStats:
         # self.players_heatmap()
 
     def top_x_longest_points(self, x):
-        top = sorted(self.points, key=lambda p: p.last_frame()-p.first_frame(), reverse=True)
+        top = sorted(self.points, key=lambda p: p.end() - p.start(), reverse=True)
         if len(top) > x:
             top = top[:x]
         return top
@@ -114,7 +114,7 @@ class GameStats:
             frames_to_count = self.frames_controller.frame_list
         else:
             try:
-                frames_to_count = self.frames_controller.get(point.first_frame(),point.last_frame())
+                frames_to_count = self.frames_controller.get(point.start(), point.end())
             except:
                 frames_to_count = []
 

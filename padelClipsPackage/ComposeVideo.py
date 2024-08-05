@@ -227,7 +227,7 @@ class ComposeVideo:
 def shots_to_json(shots, export=False, filename=""):
     json_shots = {}
     for i, shot in enumerate(shots):
-        json_shots[i+1] = [shot.first_frame(), shot.last_frame()]
+        json_shots[i+1] = [shot.start(), shot.end()]
 
     if export:
         with open(filename, 'w') as f:
@@ -239,7 +239,7 @@ def shots_to_json(shots, export=False, filename=""):
 def points_to_json(points, export=False, filename=""):
     json_points = {}
     for i, point in enumerate(points):
-        json_points[i+1] = [point.first_frame(), point.last_frame()]
+        json_points[i+1] = [point.start(), point.end()]
 
     if export:
         with open(filename, 'w') as f:

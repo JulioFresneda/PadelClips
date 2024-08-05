@@ -132,7 +132,7 @@ class Point:
     game = None
 
     def __init__(self, track: Track.Track()):
-        if len(track.track) > 0:
+        if len(track.pifs) > 0:
             self.track = track
             self.shots = self.track_to_shots()
 
@@ -144,7 +144,7 @@ class Point:
             self.shots = []
 
     def merge(self, point):
-        self.track.track += point.track.track
+        self.track.pifs += point.pifs.pifs
         self.shots = self.shots + point.shots
 
     def __len__(self):
@@ -228,10 +228,10 @@ class Point:
     def track_to_shots(self, min_length=3):
         shots = []
         buffer = []
-        if len(self.track.track) > 0:
-            initial_pos = self.position_over_the_net(self.track.track[0].y, Point.game.net)
+        if len(self.track.pifs) > 0:
+            initial_pos = self.position_over_the_net(self.track.pifs[0].y, Point.game.net)
 
-            for pif in self.track.track:
+            for pif in self.track.pifs:
                 pif_pos = self.position_over_the_net(pif.y, Point.game.net)
                 if pif_pos == initial_pos or initial_pos == 'middle' or pif_pos == 'middle' and initial_pos == 'under':
                     buffer.append(pif)
