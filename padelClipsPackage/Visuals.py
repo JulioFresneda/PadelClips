@@ -24,6 +24,85 @@ def frame_to_seconds(frame_number, frame_start, fps):
 class Visuals:
 
     @staticmethod
+    def plot_tracks_with_net_and_players(position_tracker, net, frame_start=0, frame_end=float('inf'), fps=60):
+        matplotlib.use('TkAgg')  # Use the appropriate backend
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)
+
+        ax1.set_facecolor('darkgray')
+        ax2.set_facecolor('darkgray')
+
+        # Define a helper function to convert frame number to seconds
+        def frame_to_seconds(frame_number):
+            return (frame_number - frame_start) / fps
+
+        # Format function for times on x-axis
+        def format_seconds(seconds):
+            hours, remainder = divmod(seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+        # Plot Y positions of ball and players on ax1
+        for track in position_tracker.tracks:
+            frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            y_positions = [1 - pif.y for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            if frame_numbers:
+                seconds = [frame_to_seconds(fn) for fn in frame_numbers]
+                ax1.plot(seconds, y_positions, marker='o',
+                         label=f'Track from frame {track.pifs[0].frame_number}', color='green')
+
+
+
+        player_a, fn_a = position_tracker.get_player_position_over_time('A', 'y', frame_start, frame_end)
+        player_b, fn_b = position_tracker.get_player_position_over_time('B', 'y', frame_start, frame_end)
+        ax1.plot([frame_to_seconds(fn) for fn in fn_a], player_a, marker='x', label='Player A', color='red')
+        ax1.plot([frame_to_seconds(fn) for fn in fn_b], player_b, marker='x', label='Player B', color='pink')
+        player_c, fn_c = position_tracker.get_player_position_over_time('C', 'y', frame_start, frame_end)
+        player_d, fn_d = position_tracker.get_player_position_over_time('D', 'y', frame_start, frame_end)
+        ax1.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player A', color='blue')
+        ax1.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player B', color='black')
+
+        ax1.axhline(y=(1 - net.y) + net.height / 2, color='blue', label='Net (Sup)')
+        ax1.axhline(y=(1 - net.y) - net.height / 2, color='blue', label='Net (Inf)')
+
+
+
+        ax1.set_xlabel('Time (hh:mm:ss)')
+        ax1.set_ylabel('Y Position')
+        ax1.set_title('Ball and Player Y Positions Over Time')
+        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
+        ax1.grid(True)
+
+        # Plot X positions of ball and players on ax2
+        for track in position_tracker.tracks:
+            frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            x_positions = [pif.x for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
+            if frame_numbers:
+                seconds = [frame_to_seconds(fn) for fn in frame_numbers]
+                ax2.plot(seconds, x_positions, marker='o',
+                         label=f'Track from frame {track.pifs[0].frame_number}', color='green')
+
+        player_a, fn_a = position_tracker.get_player_position_over_time('A', 'x', frame_start, frame_end)
+        player_b, fn_b = position_tracker.get_player_position_over_time('B', 'x', frame_start, frame_end)
+        ax2.plot([frame_to_seconds(fn) for fn in fn_a], player_a, marker='x', label='Player A', color='red')
+        ax2.plot([frame_to_seconds(fn) for fn in fn_b], player_b, marker='x', label='Player B', color='pink')
+        player_c, fn_c = position_tracker.get_player_position_over_time('C', 'x', frame_start, frame_end)
+        player_d, fn_d = position_tracker.get_player_position_over_time('D', 'x', frame_start, frame_end)
+        ax2.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player C', color='blue')
+        ax2.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player D', color='black')
+
+
+        ax2.set_xlabel('Time (hh:mm:ss)')
+        ax2.set_ylabel('X Position')
+        ax2.set_title('Ball and Player X Positions Over Time')
+        ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
+        ax2.grid(True)
+
+        plt.legend()
+
+        plt.tight_layout()
+        plt.show(block=True)
+
+    @staticmethod
     def plot_frames(frames, fps, start=0, end=None):
         matplotlib.use('TkAgg')
         fig, ax = plt.subplots(figsize=(20, 10))
@@ -41,6 +120,47 @@ class Visuals:
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
         plt.legend()
         plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def plot_generic_dict(data):
+        matplotlib.use('TkAgg')
+        fig, ax = plt.subplots(figsize=(20, 10))
+
+        colors = ['blue', 'green', 'red', 'pink']  # You can specify your own colors
+
+        # Plot each series
+        for i, (key, values) in enumerate(data.items()):
+            x = list(range(len(values)))  # X-axis values (position of each item)
+            plt.plot(x, values, marker='o', color=colors[i], label=key)
+
+
+        ax.grid(True)
+
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def plot_generic_list(data):
+        matplotlib.use('TkAgg')
+
+        x = list(range(len(data)))
+
+        # Assign a unique numeric value to each category
+        value_map = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
+        y = [value_map[val] for val in data]
+
+        # Plotting
+        plt.scatter(x, y, c=y, cmap='viridis', marker='o')
+
+        # Adding labels and title
+        plt.xlabel('Position')
+        plt.ylabel('Category')
+        plt.title('Occurrence of Categories in Order')
+        plt.yticks(ticks=[1, 2, 3, 4], labels=['A', 'B', 'C', 'D'])
+
+        # Display the plot
         plt.show()
 
     @staticmethod
@@ -121,7 +241,7 @@ class Visuals:
         plt.tight_layout()
         plt.show(block=True)
 
-    def plot_tracks(self, tracks, frames, frame_start=0, frame_end=float('inf'), fps=30, net=None):
+    def plot_tracks(self, tracks, frames, frame_start=0, frame_end=float('inf'), fps=30, net=None, show_players=False):
         # Set the appropriate backend
         matplotlib.use('TkAgg')
 
@@ -132,8 +252,8 @@ class Visuals:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 20), sharex=True)
 
         # Plot y and x positions on the first subplot
-        self.plot_y_positions(ax1, tracks, frame_start, frame_end, fps, False, net)
-        self.plot_x_positions(ax2, tracks, frame_start, frame_end, fps, False)
+        self.plot_y_positions(ax1, tracks, frame_start, frame_end, fps, show_players, net)
+        self.plot_x_positions(ax2, tracks, frame_start, frame_end, fps, show_players)
 
         # Plot vertical lines for tags on the second subplot
         #self.plot_frame_tags(ax2, frames, frame_start, frame_end)

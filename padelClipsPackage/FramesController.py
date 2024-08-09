@@ -15,6 +15,17 @@ class FramesController:
     def frame_tags(self):
         return [frame.tag for frame in self.frame_list]
 
+    def get_player_positions(self, tag, start=0, end=None):
+        if end is None:
+            end = len(self.frame_list)
+
+        frames = self.frame_list[start:end]
+        pos = []
+        for frame in frames:
+            pos.append(frame.player(tag))
+        return pos
+
+
     def get(self, index, index_end = None):
         if index_end is None:
             return self.frame_list[index]

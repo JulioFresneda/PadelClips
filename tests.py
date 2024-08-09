@@ -11,16 +11,16 @@ import numpy as np
 
 from padelClipsPackage.ComposeVideo import ComposeVideo, points_to_json, shots_to_json, json_points_to_video
 
-
+#aux.split_train_test_valid("/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/train/train/")
 
 
 
 ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/ball_inference.xlsx"
-players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_1/players_inference.xlsx"
-players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_1/players_inference_features.npz"
+players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/players_inference.xlsx"
+players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/players_inference_features.npz"
 video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/2set_2.mp4"
 
-frames = Frame.load_from_excel(ball_excel, players_excel, mapping={'ball': {0: Label.BALL}, 'players': {0: Label.NET, 1: Label.PLAYER}})
+frames = Frame.load_from_excel(ball_excel, players_excel, mapping={'ball': {0: Label.BALL}, 'players': {0: Label.PLAYER, 1: Label.NET}})
 print("Frames loaded.")
 fps = get_video_fps(video_path)
 

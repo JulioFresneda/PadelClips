@@ -1,6 +1,7 @@
 import matplotlib
 import numpy as np
 
+from padelClipsPackage.Point import Point
 from padelClipsPackage.Track import *
 from padelClipsPackage.Visuals import Visuals
 
@@ -14,9 +15,41 @@ class PositionTrackerV2:
         # Load phase: Equivalence track-tag
         self.tracks = self.load_tracks(delete_statics=True)
         # Merge phase: Join consecutive tracks
-        self.tracks = self.merge_tracks()
+        self.merge_tracks()
         # Split phase: Detect split conditions, like empty seconds, multiple non-static balls...
-        self.tracks = self.split_tracks()
+        self.split_tracks()
+        Visuals.plot_tracks_with_net_and_players(self, self.net)
+        self.points = self.track_to_points()
+
+
+    def get_player_position_over_time(self, tag, axis='y', start=0, end=float('inf')):
+        player = []
+        fn = []
+
+        if end == float('inf'):
+            frames = self.frames_controller.frame_list[start:]
+        else:
+            frames = self.frames_controller.get(start, end)
+        for frame in frames:
+            for p in frame.players():
+                if p.tag == tag:
+                    if axis == 'y':
+                        player.append(1 - p.y)
+                    elif axis == 'x':
+                        player.append(p.x)
+
+                    fn.append(frame.frame_number)
+
+        return player, fn
+
+
+
+    def track_to_points(self):
+        points = []
+        for track in self.tracks:
+            new_point = Point(track)
+            points.append(new_point)
+        return points
 
     def split_tracks(self):
         # Conditions
@@ -149,7 +182,7 @@ class PositionTrackerV2:
                 merged.append(merged_track)
                 for track in to_merge:
                     pool.remove(track)
-            return merged
+            self.tracks = merged
 
 
 

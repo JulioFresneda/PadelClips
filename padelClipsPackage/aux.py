@@ -192,7 +192,7 @@ def plot_random_frame(frames_path, save_path):
 
 def split_train_test_valid(folder_path):
     # Read images and annotations
-    images = [os.path.join(folder_path, x) for x in os.listdir(folder_path) if x[-3:] == "jpg"]
+    images = [os.path.join(folder_path, x) for x in os.listdir(folder_path) if x[-3:] == "PNG" or x[-3:] == "jpg"]
     annotations = [os.path.join(folder_path, x) for x in os.listdir(folder_path) if x[-3:] == "txt"]
 
     images.sort()

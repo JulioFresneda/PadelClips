@@ -4,6 +4,7 @@ from padelClipsPackage import Track
 import math
 
 from padelClipsPackage.Object import PlayerPosition
+from padelClipsPackage.Visuals import Visuals
 from padelClipsPackage.aux import format_seconds
 
 
@@ -14,7 +15,7 @@ class Shot:
         self.tag = None
         self.category = self.Category.NONE
 
-        if self.position == 'over':
+        if self.position == Position.TOP:
             min_pif = min(self.pifs, key=lambda x: x.y)
             if min_pif != self.pifs[0] and min_pif != self.pifs[-1]:
                 self.inflection = min_pif
@@ -134,36 +135,124 @@ class Point:
     def __init__(self, track: Track.Track()):
         if len(track.pifs) > 0:
             self.track = track
-            self.shots = self.track_to_shots()
+            self.shots_v2 = []
 
-            self.tag_shots(self.tagger_inflexion)
+            self.load_shots_v2()
 
-            self.print_shots()
         else:
             self.track = Track.Track()
-            self.shots = []
+            self.shots = {}
+
+
+    def load_shots_v2(self):
+        tags = ['A', 'B', 'C', 'D']
+        player_pos = {}
+        player_distances = {}
+        for tag in tags:
+            player_pos[tag] = self.game.frames_controller.get_player_positions(tag=tag, start=self.start(), end=self.end())
+            player_distances[tag] = self.get_distances(self.track.pifs, player_pos[tag], only_x=False)
+
+
+
+        self.shots = {}
+        for tag in tags:
+            self.shots[tag] = []
+
+        def get_min(mins):
+            min = float('inf')
+            index = None
+            key = None
+            for k in mins.keys():
+                m = mins[k][0]
+                if m < min:
+                    min = m
+                    index = mins[k][1]
+                    key = k
+
+            return min, key, index
+
+        def get_current(index):
+            current = {}
+            for tag in tags:
+                current[tag] = player_distances[tag][index]
+            return current
+
+        def get_dist(tag, index):
+            return player_distances[tag][index]
+
+
+        start_index = 0
+        mins = {}
+        for tag in tags:
+            mins[tag] = None
+
+        while start_index < len(self.track)-1:
+
+            for tag in tags:
+                mins[tag] = (get_dist(tag, start_index), start_index)
+
+            for tag in tags:
+                index = start_index
+                found_min = False
+                while index < len(self.track)-1 and not found_min:
+                    index += 1
+                    try:
+                        dist = get_dist(tag, index)
+                    except:
+                        print(index)
+                    if dist <= mins[tag][0]:
+                        mins[tag] = (get_dist(tag, index), index)
+                    else:
+                        found_min = True
+
+
+
+
+            min_player, min_tag, min_index = get_min(mins)
+            self.shots[min_tag].append((self.track.pifs[min_index].frame_number, min_player))
+            start_index = min_index + 1
+
+            for tag in tags:
+                mins[tag] = None
+
+
+
+
+
+
+
+    def get_distances(self, ball_pifs, player_pifs, only_x=False):
+        distances = []
+        for ball, player in zip(ball_pifs, player_pifs):
+            if only_x:
+                distances.append(abs(ball.x-player.x))
+            else:
+                distances.append(Point.euclidean_distance(ball.x, ball.y, player.x, player.y))
+        return distances
+
+
 
     def merge(self, point):
         self.track.pifs += point.pifs.pifs
         self.shots = self.shots + point.shots
 
     def __len__(self):
-        return len(self.shots)
+        return len(self.track)
 
     def __str__(self):
-        print("Point from " + str(self.first_frame()) + " to " + str(self.last_frame()))
+        print("Point from " + str(self.start()) + " to " + str(self.end()))
 
     def __repr__(self):  # This makes it easier to see the result when printing the list
-        return f"Point from " + str(self.first_frame()) + " to " + str(self.last_frame())
+        return f"Point from " + str(self.start()) + " to " + str(self.end())
 
     def point_frames(self):
-        return self.game.frames_controller.get(self.first_frame(), self.last_frame())
+        return self.game.frames_controller.get(self.start(), self.end())
 
-    def first_frame(self):
-        return self.shots[0].pifs[0].frame_number
+    def start(self):
+        return self.track.pifs[0].frame_number
 
-    def last_frame(self):
-        return self.shots[-1].pifs[-1].frame_number
+    def end(self):
+        return self.track.pifs[-1].frame_number
 
     def how_many_shots_by_player(self, tag):
         return len([s for s in self.shots if s.tag == tag])
@@ -171,96 +260,25 @@ class Point:
     def tag_shots(self, tagger):
         tagger()
 
-    def tagger_closest(self):
-        self.shots[0].tag_shot(shortest_player(self.shots[0].pifs[0], self.shots[0].position))
-        if len(self.shots) > 1:
-            for shot in self.shots[1:]:
-                closest_value = 1.0
-                closest_player = None
-                if shot.position == 'over':
-                    pos_allowed = [PlayerPosition.OVER_RIGHT, PlayerPosition.OVER_LEFT]
-                else:
-                    pos_allowed = [PlayerPosition.UNDER_RIGHT, PlayerPosition.UNDER_LEFT]
-                for pif in shot.pifs:
-                    players = self.game.frames_controller.get(pif.frame_number).players(pos_allowed)
-                    for p in players:
-                        dist = self.euclidean_distance(p.x, p.y, pif.x, pif.y)
-                        if dist < closest_value:
-                            closest_value = dist
-                            closest_player = p.tag
-                shot.tag_shot(closest_player)
 
-    def tagger_inflexion(self):
-        self.shots[0].tag_shot(shortest_player(self.shots[0].pifs[0], self.shots[0].position))
 
-        for shot in self.shots:
 
-            tag = shortest_player(shot.inflection, shot.position)
 
-            if tag is None:
-                neighbours = {}
-                for pif in shot.pifs:
-                    ntag = shortest_player(pif, shot.position)
-                    if ntag is not None:
-                        neighbours[abs(pif.frame_number - shot.inflection.frame_number)] = ntag
-                found = False
-                for i in range(len(shot.pifs)):
-                    if i in neighbours.keys():
-                        if not found:
-                            tag = neighbours[i]
-                            found = True
-
-            shot.tag_shot(tag)
-
-    def print_shots(self):
-        for shot in self.shots:
-            if len(shot.pifs) > 0:
-                print("Player " + str(shot.tag) + ": " + format_seconds(shot.inflection.frame_number,
-                                                                        30) + " > " + format_seconds(
-                    shot.pifs[0].frame_number, 30) + " -> " + format_seconds(shot.pifs[-1].frame_number, 30))
-        print('\n')
 
     @staticmethod
     def euclidean_distance(x1, y1, x2, y2):
         distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
         return distance
 
-    def track_to_shots(self, min_length=3):
-        shots = []
-        buffer = []
-        if len(self.track.pifs) > 0:
-            initial_pos = self.position_over_the_net(self.track.pifs[0].y, Point.game.net)
 
-            for pif in self.track.pifs:
-                pif_pos = self.position_over_the_net(pif.y, Point.game.net)
-                if pif_pos == initial_pos or initial_pos == 'middle' or pif_pos == 'middle' and initial_pos == 'under':
-                    buffer.append(pif)
-                    if initial_pos == 'middle':
-                        initial_pos = self.position_over_the_net(pif.y, Point.game.net)
 
-                else:
-                    s = Shot(buffer, position_tag=initial_pos)
 
-                    shots.append(s)
-                    buffer = [pif]
-                    initial_pos = self.position_over_the_net(pif.y, Point.game.net)
-                    if initial_pos == 'middle':
-                        initial_pos = 'under'
-            if len(buffer) > 0:
-                s = Shot(buffer, position_tag=initial_pos)
 
-                shots.append(s)
-            return shots
+    def position_in_field(self, y, net):
+        if y < net.y+net.height/2:
+            return Position.TOP
         else:
-            print(shots)
-            return shots
-
-    def position_over_the_net(self, y, net):
-        net_upper_pos = net.y - net.height / 2
-        net_lower_pos = net.y + net.height / 2
-        if y < net_upper_pos:
-            return 'over'
-        elif y > net_lower_pos:
-            return 'under'
-        else:
-            return 'middle'
+            return Position.BOTTOM
+class Position(Enum):
+    TOP = 0
+    BOTTOM = 1
