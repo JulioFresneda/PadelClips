@@ -96,6 +96,7 @@ class FramesController:
                     print(i)
         for i, frame in enumerate(self.frame_list):
             for player_tag in smoothed.keys():
+
                 frame.update_player_position(player_tag, smoothed[player_tag][i][0], smoothed[player_tag][i][1])
 
 

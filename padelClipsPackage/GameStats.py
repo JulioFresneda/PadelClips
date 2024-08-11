@@ -134,10 +134,10 @@ class GameStats:
         rights = 0
         backhands = 0
         for point in self.points:
-            shots = [s for s in point.shots if s.tag == player_tag]
+            shots = [s for s in point.shots if s.hit_player == player_tag]
             for shot in shots:
-                fn = shot.inflection.frame_number
-                ball_x_pos = shot.inflection.x
+                fn = shot.hit.frame_number
+                ball_x_pos = shot.hit.x
                 player = self.frames_controller.get(fn).player(player_tag)
                 if player is not None:
                     player_x_pos = player.x

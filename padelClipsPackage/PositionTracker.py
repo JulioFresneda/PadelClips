@@ -7,10 +7,11 @@ from padelClipsPackage.Visuals import Visuals
 
 
 class PositionTrackerV2:
-    def __init__(self, frames_controller, fps, net):
+    def __init__(self, frames_controller, fps, net, players_boundaries):
 
         self.fps = fps
         self.frames_controller = frames_controller
+        self.players_boundaries = players_boundaries
         self.net = net
         # Load phase: Equivalence track-tag
         self.tracks = self.load_tracks(delete_statics=True)
@@ -18,8 +19,9 @@ class PositionTrackerV2:
         self.merge_tracks()
         # Split phase: Detect split conditions, like empty seconds, multiple non-static balls...
         self.split_tracks()
-        Visuals.plot_tracks_with_net_and_players(self, self.net)
         self.points = self.track_to_points()
+        Visuals.plot_tracks_with_net_and_players(self, self.net, self.players_boundaries)
+
 
 
     def get_player_position_over_time(self, tag, axis='y', start=0, end=float('inf')):
@@ -44,12 +46,13 @@ class PositionTrackerV2:
 
 
 
-    def track_to_points(self):
+    def track_to_points(self, min_duration = 180):
         points = []
         for track in self.tracks:
             new_point = Point(track)
             points.append(new_point)
-        return points
+
+        return [point for point in points if point.duration() >= min_duration]
 
     def split_tracks(self):
         # Conditions
@@ -192,7 +195,7 @@ class PositionTrackerV2:
 
 
 
-    def load_tracks(self, delete_statics = True):
+    def load_tracks(self, delete_statics = True, min_duration = 180):
         tracks = {}
         for i, frame in self.frames_controller.enumerate():
             for ball in frame.balls():

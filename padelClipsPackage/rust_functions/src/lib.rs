@@ -17,15 +17,15 @@ fn tag_frames(frame_list: &PyList, players: &PyList, player_features: &PyDict)
     let mut tagged_players: HashMap<String, String> = HashMap::new();
 
     for (i, frame) in frame_list.iter().enumerate() {
-        if i % 100 == 0 {
+        if i % 1000 == 0 {
             println!("Tagging frame {} out of {}", i, frame_list.len());
         }
 
         // Call the Rust function to tag players in the frame
-        println!("TAGGED PLAYERS BEFORE{:#?}", tagged_players);
+        //println!("TAGGED PLAYERS BEFORE{:#?}", tagged_players);
         tagged_players = tag_players_in_frame(frame, players, player_features, tagged_players.clone())?;
 
-        println!("TAGGED PLAYERS AFTER{:#?}", tagged_players);
+        //println!("TAGGED PLAYERS AFTER{:#?}", tagged_players);
         // Update player positions and indices
         let players_in_frame: &PyList = frame.call_method0("players")?.extract()?;
         for player in players_in_frame.iter() {
@@ -96,19 +96,19 @@ fn tag_players_in_frame(frame: &PyAny, players: &PyList, player_features: &PyDic
 
 
     let players_from_frame: Vec<&PyAny> = frame.call_method0("players")?.extract()?;
-    println!("{:#?}", tagged_players);
+    //println!("{:#?}", tagged_players);
 
     // Calculate distance pairs
     for obj in &players_from_frame {
         let track_tag: String = obj.getattr("tag")?.extract()?;
-        println!("Track tag {}", track_tag);
+        //println!("Track tag {}", track_tag);
 
         if tagged_players.contains_key(&track_tag){
             let tag_value = tagged_players.get(&track_tag);
-            println!("Track tag found: {} -> {:?}", track_tag, tag_value);
+            //println!("Track tag found: {} -> {:?}", track_tag, tag_value);
             for tag in tags.keys() {
                 if tagged_players.get(&track_tag) == Some(tag) {
-                    println!("Track tag equivalence: {} == {:?}", tag, tag_value);
+                    //println!("Track tag equivalence: {} == {:?}", tag, tag_value);
                     pairs.insert((tag.clone(), obj.getattr("tag")?.extract::<String>()?), 0.0);
                 }
                 else{
@@ -160,7 +160,7 @@ fn tag_players_in_frame(frame: &PyAny, players: &PyList, player_features: &PyDic
 
     // Update frame with matches
     for match_pair in matches {
-        println!("Updating tagged_players, key {}, value {}", match_pair.1, match_pair.0);
+        //println!("Updating tagged_players, key {}, value {}", match_pair.1, match_pair.0);
         tagged_players.insert(match_pair.1.clone(), match_pair.0.clone());
         frame.call_method1("update_player_tag", (match_pair.1, match_pair.0))?;
     }

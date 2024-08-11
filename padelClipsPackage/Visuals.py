@@ -1,7 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 
-
+from padelClipsPackage.Shot import Position
 
 
 def format_seconds(seconds):
@@ -24,7 +24,7 @@ def frame_to_seconds(frame_number, frame_start, fps):
 class Visuals:
 
     @staticmethod
-    def plot_tracks_with_net_and_players(position_tracker, net, frame_start=0, frame_end=float('inf'), fps=60):
+    def plot_tracks_with_net_and_players(position_tracker, net, players_boundaries, frame_start=0, frame_end=float('inf'), fps=60):
         matplotlib.use('TkAgg')  # Use the appropriate backend
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)
 
@@ -50,6 +50,11 @@ class Visuals:
                 ax1.plot(seconds, y_positions, marker='o',
                          label=f'Track from frame {track.pifs[0].frame_number}', color='green')
 
+        colors = {'A':'red', 'B':'pink', 'C':'blue', 'D':'black'}
+        for point in position_tracker.points:
+            for shot in point.shots:
+                    ax1.plot(frame_to_seconds(shot.hit.frame_number), 1-shot.hit.y, marker='o', color=colors[shot.hit_player])
+
 
 
         player_a, fn_a = position_tracker.get_player_position_over_time('A', 'y', frame_start, frame_end)
@@ -58,12 +63,14 @@ class Visuals:
         ax1.plot([frame_to_seconds(fn) for fn in fn_b], player_b, marker='x', label='Player B', color='pink')
         player_c, fn_c = position_tracker.get_player_position_over_time('C', 'y', frame_start, frame_end)
         player_d, fn_d = position_tracker.get_player_position_over_time('D', 'y', frame_start, frame_end)
-        ax1.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player A', color='blue')
-        ax1.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player B', color='black')
+        ax1.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player C', color='blue')
+        ax1.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player D', color='black')
 
         ax1.axhline(y=(1 - net.y) + net.height / 2, color='blue', label='Net (Sup)')
         ax1.axhline(y=(1 - net.y) - net.height / 2, color='blue', label='Net (Inf)')
 
+        ax1.axhline(y=1-players_boundaries[Position.TOP], color='yellow', label='PB (Sup)')
+        ax1.axhline(y=1-players_boundaries[Position.BOTTOM] , color='yellow', label='PB (Inf)')
 
 
         ax1.set_xlabel('Time (hh:mm:ss)')

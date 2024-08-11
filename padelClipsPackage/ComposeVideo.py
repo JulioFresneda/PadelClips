@@ -16,7 +16,7 @@ from pptx import Presentation
 
 from padelClipsPackage.Point import Shot
 from padelClipsPackage.aux import extract_frame_from_video, crop_and_save_image
-
+from moviepy.editor import VideoFileClip, concatenate_videoclips, vfx
 
 class ComposeVideo:
     def __init__(self, game: Game, slides_dir, video_path):
@@ -221,7 +221,7 @@ class ComposeVideo:
         final_clip = concatenate_videoclips(clips, method="compose")
 
         # Write the result to a file
-        final_clip.write_videofile("final_output.mp4", codec="libx264", fps=30)
+        final_clip.write_videofile("final_output.mp4", codec="libx264", fps=60)
 
 
 def shots_to_json(shots, export=False, filename=""):
@@ -248,7 +248,7 @@ def points_to_json(points, export=False, filename=""):
     return json_points
 
 
-def extract_clip(input_path, start_frame, end_frame, output_path, key, fps=30):
+def extract_clip(input_path, start_frame, end_frame, output_path, key, fps=60):
     """Extract clips and add text overlay using ffmpeg."""
     start_time = start_frame / fps
     duration = (end_frame - start_frame) / fps
@@ -294,14 +294,14 @@ def concatenate_clips_with_transition(file_names, output_filename, transition_du
     # Load clips and apply fade in and fade out transitions
     for filename in file_names:
         clip = VideoFileClip(filename)
-        clip = fadein(clip, transition_duration).fadeout(transition_duration)
+        clip = clip.fx(vfx.fadein, transition_duration).fx(vfx.fadeout, transition_duration)
         clips_with_transitions.append(clip)
 
     # Concatenate clips with transitions
     final_clip = concatenate_videoclips(clips_with_transitions, method="compose")
 
     # Output file
-    final_clip.write_videofile(output_filename, codec="libx264", fps=24)
+    final_clip.write_videofile(output_filename, codec="libx264", fps=60)
 
     return output_filename
 
@@ -326,7 +326,7 @@ def json_points_to_video(points_json, input_video_path, output_video_path, from_
         end = frames[1] + margin
 
 
-        extract_clip(input_video_path, start, end, temp_clip_path, key)
+        #extract_clip(input_video_path, start, end, temp_clip_path, key)
         temp_clips.append(temp_clip_path)
 
     print("Merging clips...")

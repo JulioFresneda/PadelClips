@@ -1,6 +1,5 @@
 import time
 
-
 from padelClipsPackage.Frame import Label
 from padelClipsPackage.FramesController import FramesController
 from padelClipsPackage.GameStats import GameStats
@@ -8,12 +7,15 @@ from padelClipsPackage.Object import PlayerTemplate
 from padelClipsPackage.Point import Point
 
 from padelClipsPackage.PositionTracker import PositionTracker, PositionTrackerV2
+from padelClipsPackage.Shot import Position
 from padelClipsPackage.Visuals import Visuals
 import rust_functions
+
 
 class Game:
     def __init__(self, frames, fps, player_features):
         self.net = None
+        self.players_boundaries = None
         self.fps = int(fps)
         self.frames_controller = FramesController(frames)
 
@@ -23,16 +25,11 @@ class Game:
         Point.game = self
         self.track_ball_v2()
 
-
-
         #self.categorize_shots()
         print("Points loaded.")
 
-
-
         self.gameStats = GameStats(self.frames_controller, self.points, self.net)
         self.gameStats.print_game_stats()
-
 
     def load_player_info(self, player_features):
         self.player_features = player_features
@@ -45,6 +42,35 @@ class Game:
                                                            player_features_dict)
         print(f"Frames tagged: {time.time() - start_time} seconds")
         self.frames_controller.smooth_player_tags(player_pos, player_idx, len(self.frames_controller))
+        self.load_players_boundaries()
+
+    def load_players_boundaries(self):
+        max_y = -1
+        min_y = 1
+        for frame in self.frames_controller.frame_list:
+
+
+            players_ordered = sorted(frame.players(), key=lambda obj: obj.y+obj.height/2)
+            for i, player in enumerate(players_ordered):
+                if len(frame.players()) == 4:
+                    if i<2:
+                        player.position = Position.TOP
+                    else:
+                        player.position = Position.BOTTOM
+                else:
+                    if player.y + player.height/2 > self.net.y + self.net.height/2:
+                        player.position = Position.BOTTOM
+                    else:
+                        player.position = Position.TOP
+
+
+            for player in frame.players():
+                if player.y - player.height/2 < min_y and player.position == Position.TOP:
+                    min_y = player.y - player.height/2
+                if player.y + player.height/2 > max_y and player.position == Position.BOTTOM:
+                    max_y = player.y + player.height/2
+
+        self.players_boundaries = {Position.TOP: min_y, Position.BOTTOM: max_y}
 
     def categorize_shots(self):
         for point in self.points:
@@ -73,7 +99,6 @@ class Game:
     def get_players(self):
         return self.players.copy()
 
-
     def cook_points(self):
         tracks = self.track_ball()
         Point.game = self
@@ -93,14 +118,6 @@ class Game:
 
         return shots
 
-
-
-
-
-
-
-
-
     def set_net(self):
         best_net_frame = self.frames_controller.template_net
         self.net = [obj for obj in best_net_frame.objects if obj.class_label == Label.NET.value][0]
@@ -112,10 +129,9 @@ class Game:
         return f"Game({str(len(self.frames_controller))})"
 
     def track_ball_v2(self):
-        self.position_tracker = PositionTrackerV2(self.frames_controller, self.fps, self.net)
+        self.position_tracker = PositionTrackerV2(self.frames_controller, self.fps, self.net, self.players_boundaries)
         self.points = self.position_tracker.points
         self.tracks = self.position_tracker.tracks
-
 
     def track_ball(self):
         points = PositionTracker(self.frames_controller, self.fps, self.net)
@@ -139,7 +155,3 @@ class Game:
             players.append(game_player)
 
         return players
-
-
-
-

@@ -123,10 +123,10 @@ def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 
 #video_to_frames(video_path, output_folder)
 
 
-def apply_kalman_filter(positions):
+def apply_kalman_filter(positions, obs = 0.01, trans = 0.001):
     initial_state = positions[0]
-    observation_covariance = np.eye(2)  # Assuming small error in observation
-    transition_covariance = np.eye(2) * 0.03  # Assuming players generally move slightly
+    observation_covariance = np.eye(2) * obs # Assuming small error in observation
+    transition_covariance = np.eye(2) * trans  # Assuming players generally move slightly
     transition_matrix = np.eye(2)
 
     kf = KalmanFilter(

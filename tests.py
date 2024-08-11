@@ -18,7 +18,7 @@ from padelClipsPackage.ComposeVideo import ComposeVideo, points_to_json, shots_t
 ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/ball_inference.xlsx"
 players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/players_inference.xlsx"
 players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/players_inference_features.npz"
-video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/2set_2.mp4"
+video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/2set_2.avi"
 
 frames = Frame.load_from_excel(ball_excel, players_excel, mapping={'ball': {0: Label.BALL}, 'players': {0: Label.PLAYER, 1: Label.NET}})
 print("Frames loaded.")
@@ -28,6 +28,6 @@ game = Game(frames, fps, np.load(players_ft_npz))
 
 
 points = shots_to_json(game.gameStats.top_x_longest_points(10))
-json_points_to_video(points, video_path, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_1/points.mp4", margin=20)
+json_points_to_video(points, video_path, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_2/points.mp4", margin=0)
 
 #ComposeVideo(game, "/home/juliofgx/PycharmProjects/PadelClips/material", video_path)

@@ -76,7 +76,6 @@ class Track:
 
 
 
-
     def max_min(self):
         max = -1.0
         min = 2.0
