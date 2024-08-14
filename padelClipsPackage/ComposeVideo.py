@@ -326,7 +326,7 @@ def json_points_to_video(points_json, input_video_path, output_video_path, from_
         end = frames[1] + margin
 
 
-        #extract_clip(input_video_path, start, end, temp_clip_path, key)
+        extract_clip(input_video_path, start, end, temp_clip_path, key)
         temp_clips.append(temp_clip_path)
 
     print("Merging clips...")

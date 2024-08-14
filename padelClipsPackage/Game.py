@@ -6,7 +6,7 @@ from padelClipsPackage.GameStats import GameStats
 from padelClipsPackage.Object import PlayerTemplate
 from padelClipsPackage.Point import Point
 
-from padelClipsPackage.PositionTracker import PositionTracker, PositionTrackerV2
+from padelClipsPackage.PositionTracker import PositionTrackerV2
 from padelClipsPackage.Shot import Position
 from padelClipsPackage.Visuals import Visuals
 import rust_functions
@@ -72,51 +72,13 @@ class Game:
 
         self.players_boundaries = {Position.TOP: min_y, Position.BOTTOM: max_y}
 
-    def categorize_shots(self):
-        for point in self.points:
-            for shot in point.shots:
-                inf_frame = shot.inflection.frame_number
-                player_pos = self.frames_controller.get(inf_frame).player(shot.tag)
-                shot.categorize(player_pos)
-
-    def merge_points_too_close(self, margin=60):
-        points = self.points.copy()
-        points_merged = []
-
-        buffer = points[0]
-
-        for i in range(1, len(points)):
-            diff = points[i].start() - points[i - 1].end()
-            if diff <= margin:
-                buffer.merge(points[i])
-
-            else:
-                points_merged.append(buffer)
-                buffer = points[i]
-
-        self.points = points_merged
 
     def get_players(self):
         return self.players.copy()
 
-    def cook_points(self):
-        tracks = self.track_ball()
-        Point.game = self
 
-        points = []
-        for track in tracks:
-            point = Point(track)
-            points.append(point)
-        return points, tracks
 
-    def get_shots(self, player_tag=None, category=None):
-        shots = []
-        for point in self.points:
-            for shot in point.shots:
-                if (shot.tag == player_tag or player_tag is None) and (shot.category == category or category is None):
-                    shots.append(shot)
 
-        return shots
 
     def set_net(self):
         best_net_frame = self.frames_controller.template_net
@@ -133,9 +95,7 @@ class Game:
         self.points = self.position_tracker.points
         self.tracks = self.position_tracker.tracks
 
-    def track_ball(self):
-        points = PositionTracker(self.frames_controller, self.fps, self.net)
-        return points.points
+
 
     def set_player_templates(self):
         frame_template = self.frames_controller.get_template_players()

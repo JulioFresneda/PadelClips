@@ -6,6 +6,14 @@ class PositionInFrame:
         self.y = y
         self.frame_number = frame_number
 
+
+    @staticmethod
+    def velocity(pif_a, pif_b, scale = 1):
+        distance = PositionInFrame.distance_to(pif_a, pif_b)
+        time = abs(pif_b.frame_number - pif_a.frame_number)
+
+        return distance / time * scale
+
     def nearest(self, positions_in_frame):
         nearest = PositionInFrame(float('inf'), float('inf'), -1)
         for pif in positions_in_frame:

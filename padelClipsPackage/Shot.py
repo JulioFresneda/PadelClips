@@ -100,8 +100,8 @@ class Shot:
         return velocity * scale
 
 
-    def first_frame(self):
+    def start(self):
         return self.pifs[0].frame_number
 
-    def last_frame(self):
+    def end(self):
         return self.pifs[-1].frame_number

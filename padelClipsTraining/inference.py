@@ -83,36 +83,35 @@ class Inference:
             image = result.orig_img
 
 
-            try:
-                for (nx, ny, nw, nh), id, c, cl, xywh_t in zip(xywhn, _id, conf, cls, xywh):
-                    if c.cpu().item() >= self.conf:
-                        fn = model.gi_frame.f_locals['gen'].gi_frame.f_locals['self'].seen -1
 
-                        results_df['frame'].append(fn)
-                        results_df['class'].append(int(cl.cpu().item()))
+            for (nx, ny, nw, nh), id, c, cl, xywh_t in zip(xywhn, _id, conf, cls, xywh):
+                if c.cpu().item() >= self.conf:
+                    fn = model.gi_frame.f_locals['gen'].gi_frame.f_locals['self'].seen -1
 
-                        results_df['x'].append(nx.cpu().item())
-                        results_df['y'].append(ny.cpu().item())
-                        results_df['w'].append(nw.cpu().item())
-                        results_df['h'].append(nh.cpu().item())
+                    results_df['frame'].append(fn)
+                    results_df['class'].append(int(cl.cpu().item()))
 
-                        results_df['conf'].append(c.cpu().item())
+                    results_df['x'].append(nx.cpu().item())
+                    results_df['y'].append(ny.cpu().item())
+                    results_df['w'].append(nw.cpu().item())
+                    results_df['h'].append(nh.cpu().item())
 
-                        if add_features:
-                            results_df['xywh'].append(xywh_t)
-                        else:
-                            results_df['xywh'].append(None)
+                    results_df['conf'].append(c.cpu().item())
 
-                        if track and id is not None:
-                            results_df['id'].append(int(id.cpu().item()))
-                        else:
-                            results_df['id'].append(None)
-            except:
-                print(3)
+                    if add_features:
+                        results_df['xywh'].append(xywh_t)
+                    else:
+                        results_df['xywh'].append(None)
+
+                    if track and id is not None:
+                        results_df['id'].append(int(id.cpu().item()))
+                    else:
+                        results_df['id'].append(None)
 
 
-            if fn % 100 == 0:
-                print("Inferenced frame " + str(fn), end='\r', flush=True)
+
+                    if fn % 100 == 0:
+                        print("Inferenced frame " + str(fn), end='\r', flush=True)
 
         results_df = pd.DataFrame(results_df)
         if add_features:
@@ -125,10 +124,17 @@ class Inference:
         return results_df, features
 
 
-model_ball = "/home/juliofgx/PycharmProjects/PadelClips/padelClipsTraining/ball_pove_2set_1/best.pt"
-model_players = "/home/juliofgx/PycharmProjects/PadelClips/PadelClipsTraining/runs/detect/train7/weights/best.pt"
+
+
+
+model_ball = "/home/juliofgx/PycharmProjects/PadelClips/padelClipsTraining/ball_pove_2set_1/best.engine"
+model_players = "/home/juliofgx/PycharmProjects/PadelClips/PadelClipsTraining/runs/detect/train7/weights/best.engine"
+
+
+
+
 inference = Inference(model_ball, model_players)
 
-source = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_fixed.mp4"
-inference.inference(source, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_full", conf=0.25)
+source = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_4/2set_4.mp4"
+inference.inference(source, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_4", conf=0.25)
 

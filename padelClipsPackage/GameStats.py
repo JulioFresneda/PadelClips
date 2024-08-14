@@ -58,8 +58,8 @@ class GameStats:
             top = self.top_x_points_where_player_ran_the_most(3, player.tag)
 
             r, b = self.rights_and_backhands(player.tag)
-            print(
-                "\nRights: " + str(r) + ", backhands: " + str(b) + ", backhands percentage: " + str(b / r * 100) + "%")
+            #print(
+            #    "\nRights: " + str(r) + ", backhands: " + str(b) + ", backhands percentage: " + str(b / r * 100) + "%")
 
         print("\n\n------- Trophies -------")
         print("\nPlayer that ran the most: " + self.player_that_ran_the_most().tag)

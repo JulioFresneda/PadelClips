@@ -17,8 +17,12 @@ def format_time(seconds):
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 
-def frame_to_seconds(frame_number, frame_start, fps):
-    return (frame_number - frame_start) / fps
+def frame_to_seconds(frame_number, frame_start = None, fps = 60):
+    if frame_start is not None:
+        return (frame_number - frame_start) / fps
+    else:
+        return (frame_number) / fps
+
 
 
 class Visuals:
@@ -298,12 +302,12 @@ class Visuals:
 
 
     def plot_y_positions(self, ax, tracks, frame_start, frame_end, fps, show_players, net):
-        colors = ['green', 'yellow', 'red', 'blue', 'black']
+        colors = ['green', 'brown', 'red', 'blue', 'black']
         for i, track in enumerate(tracks):
             frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             y_positions = [1 - pif.y for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             if frame_numbers:
-                seconds = [frame_to_seconds(fn, frame_start, fps) for fn in frame_numbers]
+                seconds = [frame_to_seconds(fn, None, fps) for fn in frame_numbers]
                 ax.plot(seconds, y_positions, marker='o',
                          label=f'Track {track.tag}', color=colors[i%5])
 
@@ -327,7 +331,7 @@ class Visuals:
             frame_numbers = [pif.frame_number for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             x_positions = [pif.x for pif in track.pifs if frame_start <= pif.frame_number <= frame_end]
             if frame_numbers:
-                seconds = [frame_to_seconds(fn, frame_start, fps) for fn in frame_numbers]
+                seconds = [frame_to_seconds(fn, None, fps) for fn in frame_numbers]
                 ax.plot(seconds, x_positions, marker='o',
                         label=f'Track from frame {track.pifs[0].frame_number}', color='green')
 

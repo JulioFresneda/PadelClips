@@ -4,13 +4,14 @@ from padelClipsPackage import Track
 import math
 
 from padelClipsPackage.Shot import Shot, Position
-from padelClipsPackage.aux import apply_kalman_filter
+from padelClipsPackage.aux import apply_kalman_filter, apply_kalman_filter_pifs
+
 
 class Point:
     game = None
 
-    def __init__(self, track: Track.Track()):
-        if len(track.pifs) > 0:
+    def __init__(self, track: Track.Track() = None):
+        if track is not None and len(track.pifs) > 0:
             self.track = track
             self.shots = []
 
@@ -18,7 +19,67 @@ class Point:
 
         else:
             self.track = Track.Track()
-            self.shots = {}
+            self.shots = []
+
+
+    @staticmethod
+    def split_point_list(point, shots):
+        subpoints = []
+        start_index = 0
+
+        for shot in shots:
+            segment = point.shots[start_index:point.shots.index(shot)]
+            subpoints.append(segment)
+            start_index = point.shots.index(shot) + 1
+
+        # Add the final segment
+        if len(point.shots) > start_index:
+            subpoints.append(point.shots[start_index:])
+
+        subpoints_ready = []
+        for subpoint in subpoints:
+            new_point = Point()
+            new_point.shots = subpoint
+            for shot in subpoint:
+                new_point.track.pifs += shot.pifs
+            subpoints_ready.append(new_point)
+        return subpoints_ready
+
+
+
+
+    @staticmethod
+    def split_point(point, shot):
+        left_track = []
+        left_shots = []
+        right_track = []
+        right_shots = []
+
+        for pif in point.track.pifs:
+            if pif.frame_number < shot.pifs[0].frame_number:
+                left_track.append(pif)
+            elif pif.frame_number > shot.pifs[-1].frame_number:
+                right_track.append(pif)
+
+        index = point.shots.index(shot)
+        for i, shot in enumerate(point.shots):
+            if i < index:
+                left_shots.append(shot)
+            elif i > index:
+                right_shots.append(shot)
+
+        point_left = Point()
+        point_left.track.pifs = left_track
+        point_left.shots = left_shots
+
+        point_right = Point()
+        point_right.track.pifs = right_track
+        point_right.shots = right_shots
+
+        return point_left, point_right
+
+
+
 
     def cook_shots(self):
         all_pifs = self.track.pifs
@@ -30,8 +91,6 @@ class Point:
         for pif in all_pifs:
             if pif.y > self.game.net.y + self.game.net.height / 2:
                 if len(buffer_top) > 0:
-                    #shot = ShotV2(buffer_top, Position.TOP)
-                    #shot.tag_hit_player(self.game.frames_controller.get(shot.hit.frame_number).players())
                     shots_top.append(buffer_top)
                     buffer_top = []
 
@@ -40,7 +99,6 @@ class Point:
             else:
                 if len(buffer_bottom) > 0:
                     shot = Shot(buffer_bottom, Position.BOTTOM)
-
                     self.shots.append(shot)
                     buffer_bottom = []
                 buffer_top.append(pif)
@@ -54,7 +112,7 @@ class Point:
 
         shots_top_mountains = []
         for subshot in shots_top:
-            shots_top_mountains.append(self.find_mountains(subshot))
+            shots_top_mountains.append(Point.find_mountains(subshot))
 
         for mountains in shots_top_mountains:
             self.top_mountains_to_shots(mountains)
@@ -71,10 +129,14 @@ class Point:
                     shots_clean.remove(last_shot)
             last_shot = shot
 
-        if shots_clean[-1].hit in shots_clean[-1].pifs[-3:]:
-            shots_clean.remove(shots_clean[-1])
+        #if shots_clean[-1].hit in shots_clean[-1].pifs[-3:]:
+        #    shots_clean.remove(shots_clean[-1])
 
         self.shots = shots_clean
+
+
+
+
 
     def top_mountains_to_shots(self, shots_top_mountains, min_length=20, min_height=0.1, min_dist=30):
         if len(shots_top_mountains) == 1:
@@ -132,7 +194,12 @@ class Point:
                         top = True
                 count -= 1
 
-    def find_mountains(self, lst):
+    @staticmethod
+    def find_mountains(lst, smooth=False, max_height = 1):
+        if smooth:
+
+            lst = apply_kalman_filter_pifs(lst, obs=0.1, trans=0.03)
+
         if len(lst) < 3:
             return [lst]  # If the list is too small, return it as a single "mountain"
 
@@ -160,7 +227,13 @@ class Point:
             else:
                 i += 1
 
-        return mountains
+        mountains_height_comply = []
+        for mountain in mountains:
+            min_y = min(mountain, key=lambda pif: pif.y).y
+            max_y = max(mountain, key=lambda pif: pif.y).y
+            if abs(max_y-min_y) < max_height:
+                mountains_height_comply.append(mountain)
+        return mountains_height_comply
 
     def get_distances(self, ball_pifs, player_pifs, only_x=False):
         distances = []
@@ -193,7 +266,10 @@ class Point:
         return self.track.pifs[0].frame_number
 
     def end(self):
-        return self.track.pifs[-1].frame_number
+        try:
+            return self.track.pifs[-1].frame_number
+        except:
+            print(self.shots)
 
     def how_many_shots_by_player(self, tag):
         return len([s for s in self.shots if s.hit_player == tag])

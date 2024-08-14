@@ -122,8 +122,23 @@ def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 
 #output_folder = 'dataset/padel2/images/'
 #video_to_frames(video_path, output_folder)
 
+def apply_kalman_filter_pifs(pifs, obs = 1, trans = 0.03):
+    if len(pifs) > 1:
+        pos = []
+        spifs = pifs.copy()
+        for pif in spifs:
+            pos.append((pif.x, pif.y))
+        kpos = apply_kalman_filter(pos, obs, trans)
+        for pif, k in zip(spifs, kpos):
+            pif.x = k[0]
+            pif.y = k[1]
 
-def apply_kalman_filter(positions, obs = 0.01, trans = 0.001):
+        return spifs
+    else:
+        return pifs
+
+
+def apply_kalman_filter(positions, obs = 1, trans = 0.03):
     initial_state = positions[0]
     observation_covariance = np.eye(2) * obs # Assuming small error in observation
     transition_covariance = np.eye(2) * trans  # Assuming players generally move slightly
