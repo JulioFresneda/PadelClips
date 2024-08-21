@@ -135,6 +135,6 @@ model_players = "/home/juliofgx/PycharmProjects/PadelClips/PadelClipsTraining/ru
 
 inference = Inference(model_ball, model_players)
 
-source = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_4/2set_4.mp4"
-inference.inference(source, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_4", conf=0.25)
+source = "/media/juliofgx/OS/1set.mp4"
+inference.inference(source, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set", conf=0.25)
 

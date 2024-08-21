@@ -77,6 +77,9 @@ class GameStats:
         top = sorted(self.points, key=lambda p: p.end() - p.start(), reverse=True)
         if len(top) > x:
             top = top[:x]
+        if x == 10:
+            for shot in top[3].shots:
+                shot.check_smash()
         return top
 
     def top_x_more_shots(self, x):

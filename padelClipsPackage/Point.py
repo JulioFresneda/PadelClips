@@ -3,7 +3,7 @@ from enum import Enum
 from padelClipsPackage import Track
 import math
 
-from padelClipsPackage.Shot import Shot, Position
+from padelClipsPackage.Shot import Shot, Position, ShotV2, CategoryV2
 from padelClipsPackage.aux import apply_kalman_filter, apply_kalman_filter_pifs
 
 
@@ -15,11 +15,26 @@ class Point:
             self.track = track
             self.shots = []
 
-            self.cook_shots()
+            self.cook_shots_v2()
 
         else:
             self.track = Track.Track()
             self.shots = []
+
+
+
+    def cook_shots_v2(self, min_length=30):
+        all_pifs = self.track.pifs
+        shots = Point.segment_by_extrema(all_pifs, key_func_x=lambda pif: pif.x, key_func_y=lambda pif: pif.y)
+
+        self.shots = []
+        for shot in shots:
+            if shot[-1].frame_number - shot[0].frame_number >= min_length:
+                new_shot = ShotV2(shot)
+                self.shots.append(new_shot)
+        if self.shots[0].category is CategoryV2.NONE:
+            self.shots[0].category = CategoryV2.SERVE
+
 
 
     @staticmethod
@@ -78,7 +93,47 @@ class Point:
 
         return point_left, point_right
 
+    @staticmethod
+    def find_local_extrema(arr, key_func_y, key_func_x):
+        """Find indices of local minima and maxima in a list based on key functions for y and x."""
+        extrema_indices = []
 
+        n = len(arr)
+        arr = apply_kalman_filter_pifs(arr, obs=0.1, trans=0.03)
+
+        for i in range(1, n - 1):
+            prev_val_y = key_func_y(arr[i - 1])
+            curr_val_y = key_func_y(arr[i])
+            next_val_y = key_func_y(arr[i + 1])
+
+            prev_val_x = key_func_x(arr[i - 1])
+            curr_val_x = key_func_x(arr[i])
+            next_val_x = key_func_x(arr[i + 1])
+
+            # Check for local maximum considering both y and x
+            if (prev_val_y < curr_val_y > next_val_y) or (prev_val_x < curr_val_x > next_val_x):
+                extrema_indices.append(i)
+            # Check for local minimum considering both y and x
+            elif (prev_val_y > curr_val_y < next_val_y) or (prev_val_x > curr_val_x < next_val_x):
+                extrema_indices.append(i)
+
+        return extrema_indices
+
+    @staticmethod
+    def segment_by_extrema(arr, key_func_x, key_func_y):
+        """Segment the list into parts that start and end with a local extremum based on a key function."""
+        extrema_indices = Point.find_local_extrema(arr, key_func_x, key_func_y)
+        segments = []
+
+        # Adding the start and end points for full segmentation
+        extrema_indices = [0] + extrema_indices + [len(arr) - 1]
+
+        for i in range(len(extrema_indices) - 1):
+            start = extrema_indices[i]
+            end = extrema_indices[i + 1]
+            segments.append(arr[start:end + 1])
+
+        return segments
 
 
     def cook_shots(self):

@@ -45,7 +45,8 @@ class FramesController:
 
         for i, frame in enumerate(self.frame_list):
             if i % 100 == 0:
-                print("Tagging frame " + str(i) + " out of " + str(len(self.frame_list)), end='\r')
+                pass
+                #print("Tagging frame " + str(i) + " out of " + str(len(self.frame_list)), end='\r')
 
 
             # Tag players

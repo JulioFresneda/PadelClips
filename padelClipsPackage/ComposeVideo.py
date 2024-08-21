@@ -237,9 +237,9 @@ def shots_to_json(shots, export=False, filename=""):
 
 
 def points_to_json(points, export=False, filename=""):
-    json_points = {}
+    json_points = []
     for i, point in enumerate(points):
-        json_points[i+1] = [point.start(), point.end()]
+        json_points.append([point.start(), point.end()])
 
     if export:
         with open(filename, 'w') as f:
@@ -248,29 +248,32 @@ def points_to_json(points, export=False, filename=""):
     return json_points
 
 
-def extract_clip(input_path, start_frame, end_frame, output_path, key, fps=60):
-    """Extract clips and add text overlay using ffmpeg."""
+def extract_clip(input_path, start_frame, end_frame, output_path, overlay_clip_path, fps=60):
+    """Extract clips and overlay a video in the bottom right corner using ffmpeg."""
     start_time = start_frame / fps
     duration = (end_frame - start_frame) / fps
-    drawtext = "drawtext=text='" + str(key) + "':x=w-tw-10:y=h-th-10:fontsize=720:fontcolor=white"
+
+    # Command to overlay the video clip
     command = [
         'ffmpeg', '-y',
         '-ss', str(start_time), '-t', str(duration),  # Efficient seeking
-        '-i', input_path,
-        '-vf', drawtext,  # Text overlay
+        '-i', input_path,  # Input video
+        '-i', overlay_clip_path,  # Overlay video
+        '-filter_complex', "[1:v]scale=iw/4:-1[ovrl];[0:v][ovrl]overlay=W-w-40:H-h-20:enable='lte(t,3)'",  # Scale and position overlay
         '-c:v', 'libx264',  # Video codec
         '-c:a', 'aac',  # Audio codec
         output_path
     ]
+
     process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     # Error handling
     if process.returncode != 0:
-        print("Error occurred while executing FFmpeg with clip " + str(key) + ":")
+        print("Error occurred while executing FFmpeg:")
         print(process.stderr)
         raise RuntimeError("FFmpeg failed with an error. See output above for more details.")
 
-    print("FFmpeg process completed successfully with clip " + str(key))
+    print("FFmpeg process completed successfully.")
 def merge_clips(clips, output_path):
     """Merge video clips into a single video using ffmpeg."""
     with open('filelist.txt', 'w') as f:
@@ -292,6 +295,12 @@ def concatenate_clips_with_transition(file_names, output_filename, transition_du
     clips_with_transitions = []
 
     # Load clips and apply fade in and fade out transitions
+    start_filename = "/home/juliofgx/PycharmProjects/PadelClips/resources/start.mp4"
+    clip = VideoFileClip(start_filename)
+    clip = clip.fx(vfx.fadein, transition_duration).fx(vfx.fadeout, transition_duration)
+    clips_with_transitions.append(clip)
+
+
     for filename in file_names:
         clip = VideoFileClip(filename)
         clip = clip.fx(vfx.fadein, transition_duration).fx(vfx.fadeout, transition_duration)
@@ -305,29 +314,44 @@ def concatenate_clips_with_transition(file_names, output_filename, transition_du
 
     return output_filename
 
+def merge_pairs(pairs):
+    if not pairs:
+        return []
 
-def json_points_to_video(points_json, input_video_path, output_video_path, from_path = None, margin=0):
+    # Start with the first pair
+    merged_pairs = [pairs[0]]
 
-    # Load the JSON data from a file
-    if from_path is not None:
-        with open(from_path, 'r') as file:
-            points = json.load(file)
-    else:
-        points = points_json
+    for i in range(1, len(pairs)):
+        last_merged_pair = merged_pairs[-1]
+        current_pair = pairs[i]
+
+        # If the end of the last merged pair overlaps with or touches the start of the current pair
+        if last_merged_pair[1] >= current_pair[0]:
+            # Merge the two pairs
+            merged_pairs[-1] = (last_merged_pair[0], max(last_merged_pair[1], current_pair[1]))
+        else:
+            # Otherwise, add the current pair to the result as it is
+            merged_pairs.append(current_pair)
+
+    return merged_pairs
+def json_points_to_video(points, input_video_path, output_video_path, from_path = None, margin=30):
+
+
+
+
 
     temp_clips = []
 
-    for key, frames in points.items():
-        print("Extracting point " + str(key), end='\r')
-        temp_clip_path = f"/home/juliofgx/PycharmProjects/PadelClips/making/temp_clip_{key}.mp4"
-        start = frames[0] - margin
-        if start < 0:
-            start = 0
-        end = frames[1] + margin
-
-
-        extract_clip(input_video_path, start, end, temp_clip_path, key)
+    for i in range(10, 0, -1):
+        print("Extracting point " + str(i), end='\r')
+        temp_clip_path = f"/home/juliofgx/PycharmProjects/PadelClips/making/temp_clip_{i}.mp4"
+        start = points[i-1][0] - margin
+        end = points[i-1][1] + margin
+        overlay_path = f"/home/juliofgx/PycharmProjects/PadelClips/resources/points/{i}.mp4"
+        if not os.path.exists(temp_clip_path):
+            extract_clip(input_video_path, start, end, temp_clip_path, overlay_path)
         temp_clips.append(temp_clip_path)
+
 
     print("Merging clips...")
     concatenate_clips_with_transition(temp_clips, output_video_path)

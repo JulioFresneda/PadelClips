@@ -1,4 +1,5 @@
 import time
+import pickle
 
 from padelClipsPackage.Frame import Label
 from padelClipsPackage.FramesController import FramesController
@@ -7,39 +8,72 @@ from padelClipsPackage.Object import PlayerTemplate
 from padelClipsPackage.Point import Point
 
 from padelClipsPackage.PositionTracker import PositionTrackerV2
-from padelClipsPackage.Shot import Position
+from padelClipsPackage.Shot import Position, ShotV2
 from padelClipsPackage.Visuals import Visuals
 import rust_functions
 
 
 class Game:
-    def __init__(self, frames, fps, player_features):
+    def __init__(self, frames, fps, player_features, start=0, end=None):
+
+        self.start = start
+        self.end = len(frames) if end is None else end
+
+
+
         self.net = None
         self.players_boundaries = None
         self.fps = int(fps)
-        self.frames_controller = FramesController(frames)
+
+        self.frames_controller = FramesController(frames[start:end])
+
 
         self.load_player_info(player_features)
         self.set_net()
 
         Point.game = self
+        ShotV2.game = self
         self.track_ball_v2()
+        Visuals.plot_points(self.tracks, self.points, self.net, self.fps )
 
-        #self.categorize_shots()
         print("Points loaded.")
 
         self.gameStats = GameStats(self.frames_controller, self.points, self.net)
         self.gameStats.print_game_stats()
 
+    def load_hyperparameters(self, hyperparameters):
+        self.default_hyperparameters = {
+            'static_ball_min_frames':120,
+            'static_ball_min_diff_allowed':0.005,
+            'max_bottom_mountains':2,
+            'max_top_mountains':4,
+            'max_height_top_mountains':0.1,
+            'jumps_min_frames':120,
+            'jumps_max_allowed':0.4,
+            'jumps_max_num':2,
+            'slow_balls_min_frames':60,
+            'slow_balls_min_velocity':8,
+            'disc_min_frames':120,
+            'disc_frames_disc':20,
+            'disc_min_occurrences':3
+        }
+
+        if hyperparameters is None:
+            self.hyperparameters = self.default_hyperparameters
+        else:
+            self.hyperparameters = hyperparameters
+            for default in self.default_hyperparameters.keys():
+                if default not in self.hyperparameters.keys():
+                    self.hyperparameters[default] = self.default_hyperparameters[default]
+        print(f"Evaluated config: {self.hyperparameters}")
     def load_player_info(self, player_features):
         self.player_features = player_features
         self.players = self.set_player_templates()
 
         # Tag frames
         start_time = time.time()
-        player_features_dict = {str(int(key)): player_features[key] for key in player_features.files}
         player_pos, player_idx = rust_functions.tag_frames(self.frames_controller.frame_list, self.players,
-                                                           player_features_dict)
+                                                           self.player_features)
         print(f"Frames tagged: {time.time() - start_time} seconds")
         self.frames_controller.smooth_player_tags(player_pos, player_idx, len(self.frames_controller))
         self.load_players_boundaries()

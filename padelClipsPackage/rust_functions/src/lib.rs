@@ -8,6 +8,8 @@ use pyo3::prepare_freethreaded_python;
 use std::io::{self, Write};
 
 
+
+
 #[pyfunction]
 fn tag_frames(frame_list: &PyList, players: &PyList, player_features: &PyDict)
 -> PyResult<(HashMap<String, Vec<(f64, f64)>>, HashMap<String, Vec<usize>>)> {
@@ -17,9 +19,7 @@ fn tag_frames(frame_list: &PyList, players: &PyList, player_features: &PyDict)
     let mut tagged_players: HashMap<String, String> = HashMap::new();
 
     for (i, frame) in frame_list.iter().enumerate() {
-        if i % 1000 == 0 {
-            println!("Tagging frame {} out of {}", i, frame_list.len());
-        }
+
 
         // Call the Rust function to tag players in the frame
         //println!("TAGGED PLAYERS BEFORE{:#?}", tagged_players);
@@ -181,5 +181,6 @@ fn tag_players_in_frame(frame: &PyAny, players: &PyList, player_features: &PyDic
 #[pymodule]
 fn rust_functions(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(tag_frames, m)?)?;
+
     Ok(())
 }

@@ -1,7 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 
-from padelClipsPackage.Shot import Position
+from padelClipsPackage.Shot import Position, Category
 
 
 def format_seconds(seconds):
@@ -55,9 +55,9 @@ class Visuals:
                          label=f'Track from frame {track.pifs[0].frame_number}', color='green')
 
         colors = {'A':'red', 'B':'pink', 'C':'blue', 'D':'black'}
-        for point in position_tracker.points:
-            for shot in point.shots:
-                    ax1.plot(frame_to_seconds(shot.hit.frame_number), 1-shot.hit.y, marker='o', color=colors[shot.hit_player])
+        #for point in position_tracker.points:
+        #    for shot in point.shots:
+        #            ax1.plot(frame_to_seconds(shot.hit.frame_number), 1-shot.hit.y, marker='o', color=colors[shot.hit_player])
 
 
 
@@ -205,6 +205,22 @@ class Visuals:
                 if highlight_track:
                     h_sec, h_val = zip(*highlight_track)
                     ax.plot(h_sec, h_val, marker='o', color='green')
+
+                for shot in point.shots:
+                    if shot.category == Category.SMASH:
+                        highlight_track = [(fn, y) for fn, y in zip(y_pos_frn, y_pos_val) if
+                                           shot.start() <= fn <= shot.end()]
+                        if highlight_track:
+                            h_sec, h_val = zip(*highlight_track)
+                            ax.plot(h_sec, h_val, marker='o', color='yellow')
+                    if shot.category == Category.GLOBE:
+                        highlight_track = [(fn, y) for fn, y in zip(y_pos_frn, y_pos_val) if
+                                           shot.start() <= fn <= shot.end()]
+                        if highlight_track:
+                            h_sec, h_val = zip(*highlight_track)
+                            ax.plot(h_sec, h_val, marker='o', color='blue')
+
+
 
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(frame_to_seconds(x,0,fps))))
 
