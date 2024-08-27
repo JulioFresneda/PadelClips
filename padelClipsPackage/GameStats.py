@@ -57,7 +57,7 @@ class GameStats:
             print("\nTop 3 points where player ran the most")
             top = self.top_x_points_where_player_ran_the_most(3, player.tag)
 
-            r, b = self.rights_and_backhands(player.tag)
+            #r, b = self.rights_and_backhands(player.tag)
             #print(
             #    "\nRights: " + str(r) + ", backhands: " + str(b) + ", backhands percentage: " + str(b / r * 100) + "%")
 
@@ -95,7 +95,7 @@ class GameStats:
         return top
 
     def average_shots_per_point(self):
-        total_length = sum(len(obj) for obj in self.points)
+        total_length = sum(len(obj.shots) for obj in self.points)
         average_length = total_length / len(self.points)
         return average_length
 
@@ -137,7 +137,7 @@ class GameStats:
         rights = 0
         backhands = 0
         for point in self.points:
-            shots = [s for s in point.shots if s.hit_player == player_tag]
+            shots = [s for s in point.shots if s.striker is not None and s.striker.tag == player_tag]
             for shot in shots:
                 fn = shot.hit.frame_number
                 ball_x_pos = shot.hit.x

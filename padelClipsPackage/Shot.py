@@ -33,41 +33,47 @@ class ShotV2:
         self.direction = self.get_direction()
         self.category = self.categorize()
 
-        self.striker, self.receiver = self.set_players()
+        self.striker, self.receiver, self.striker_pif, self.receiver_pif = self.set_players()
+
+        self.check_smash()
 
 
-
+    def check_smash(self):
+        if self.category is CategoryV2.NONE and self.striker is not None:
+            if self.striker_pif.y < self.striker.y - self.striker.height/2:
+                if self.striker.x - self.striker.width/2 < self.striker_pif.x < self.striker.x + self.striker.width/2:
+                    self.category = CategoryV2.SMASH
     def set_players(self):
         self.frames_in_shot = ShotV2.game.frames_controller.frame_list[
                               self.pifs[0].frame_number-self.game.start:self.pifs[-1].frame_number + 1-self.game.start]
-        stricker = self.set_stricker()
-        receiver = self.set_receiver()
+        stricker, s_pif = self.set_stricker()
+        receiver, r_pif = self.set_receiver()
 
-        return stricker, receiver
+        return stricker, receiver, s_pif, r_pif
 
     def set_stricker(self):
         if self.category is not CategoryV2.END_GLOBE:
             for frame, pif in zip(self.frames_in_shot, self.pifs):
                 if pif.y >= ShotV2.game.players_boundaries[Position.TOP] - 0.1:
-                    if pif.y > self.game.net.y + self.game.net.height/2:
+                    if pif.y > self.game.net.y + self.game.net.height/2 + 0.25:
                         players = frame.players(positions=[Position.BOTTOM])
                     else:
                         players = frame.players()
                     distances = [self.get_distances(pif, player) for player in players]
-                    return players[distances.index(min(distances))]
-        return None
+                    return players[distances.index(min(distances))], pif
+        return None, None
 
     def set_receiver(self):
         if self.category is not CategoryV2.START_GLOBE:
             for frame, pif in reversed(list(zip(self.frames_in_shot, self.pifs))):
                 if pif.y >= ShotV2.game.players_boundaries[Position.TOP] - 0.1:
-                    if pif.y > self.game.net.y + self.game.net.height / 2:
+                    if pif.y > self.game.net.y + self.game.net.height / 2 + 0.25:
                         players = frame.players(positions=[Position.BOTTOM])
                     else:
                         players = frame.players()
                     distances = [self.get_distances(pif, player) for player in players]
-                    return players[distances.index(min(distances))]
-        return None
+                    return players[distances.index(min(distances))], pif
+        return None, None
 
     def get_direction(self):
         if self.pifs[-1].y - self.pifs[0].y > 0:
@@ -77,13 +83,11 @@ class ShotV2:
 
 
     def categorize(self, min_velocity = 10):
-        speed = PositionInFrame.speed_list(self.pifs)
+        #speed = PositionInFrame.speed_list(self.pifs)
         if self.pifs[0].y < 0.1 and self.direction is Direction.DOWN:
             return CategoryV2.END_GLOBE
         elif self.pifs[-1].y < 0.1 and self.direction is Direction.UP:
             return CategoryV2.START_GLOBE
-        elif speed > 10:
-            return Category.SMASH
         else:
             return CategoryV2.NONE
 

@@ -54,6 +54,12 @@ class Player(Object):
     def tag_position(self, position: PlayerPosition):
         self.position = position
 
+    def __str__(self):
+        print("Player " + self.tag)
+
+    def __repr__(self):  # This makes it easier to see the result when printing the list
+        return f"Player({self.tag})"
+
 
     @staticmethod
     def position_players(players):

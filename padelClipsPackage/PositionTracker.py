@@ -22,7 +22,7 @@ class PositionTrackerV2:
         # Load phase: Equivalence track-tag
         self.tracks = self.load_tracks(delete_statics=True)
         # Merge phase: Join consecutive tracks
-        self.merge_tracks()
+
 
         # LEARN PHASE
         #with open("/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/points.json") as f:
@@ -32,13 +32,44 @@ class PositionTrackerV2:
 
         # Clean phase: Detect split conditions, like empty seconds, multiple non-static balls...
         #self.clean_tracks()
+        self.remove_static_tracks()
+        self.merge_tracks()
         #self.points = self.track_to_points()
         #
 
         # PREDICT FROM MODEL
-        Visuals.plot_tracks_with_net_and_players(self, self.net, self.players_boundaries)
+        Visuals.plot_tracks_with_net_and_players(self, self.net, self.players_boundaries, frame_start=23700, frame_end=25200)
         self.predict_points(min_duration=0)
 
+    def remove_static_tracks(self, min_frames=60, min_diff_allowed=0.005):
+        static = {}
+        for track in self.tracks:
+            if len(track) > min_frames:
+                static_idx = []
+
+                start_static_fn = track.pifs[0].frame_number
+                end_static_fn = 0
+                counter = 0
+
+                for i in range(1, len(track.pifs)):
+                    if abs(track.pifs[i].y - track.pifs[i - 1].y) < min_diff_allowed:
+                        end_static_fn = track.pifs[i].frame_number
+                        counter += 1
+                    else:
+                        if counter > min_frames:
+                            static_idx.append((start_static_fn, end_static_fn))
+                        start_static_fn = track.pifs[i].frame_number
+                        counter = 0
+                static[track] = static_idx
+
+        subtracks = []
+        for track, static_moments in static.items():
+            subtracks += Track.split_track(track, static_moments)
+        for track in self.tracks:
+            if track not in static.keys():
+                subtracks.append(track)
+
+        self.tracks = sorted(subtracks, key=lambda track: track.start())
 
     def predict_points(self, min_duration):
         all_pifs = []
@@ -173,28 +204,28 @@ class PositionTrackerV2:
         vis = Visuals()
         #vis.plot_tracks(self.tracks, self.frames_controller.frame_list, frame_start=start, frame_end=end, fps=60, net=self.net)
 
-        self.no_balls_moments()
-        self.clean_short_tracks()
+        #self.no_balls_moments()
+        #self.clean_short_tracks()
         #vis.plot_tracks(self.tracks, self.frames_controller.frame_list, frame_start=start, frame_end=end, fps=60, net=self.net)
 
 
-        self.static_balls_moments(min_frames=self.hyperparameters['static_ball_min_frames'], min_diff_allowed = self.hyperparameters['static_ball_min_diff_allowed'])
+        self.static_balls_moments(min_frames=60, min_diff_allowed = 0.0005)
         #vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, frame_start=start, frame_end=end, net=self.net)
 
 
-        self.bottom_mountains_moments(max_mountains=self.hyperparameters['max_bottom_mountains'])
-        self.top_mountains_moments(max_mountains=self.hyperparameters['max_top_mountains'], max_height=self.hyperparameters['max_height_top_mountains'])
+        #self.bottom_mountains_moments(max_mountains=self.hyperparameters['max_bottom_mountains'])
+        #self.top_mountains_moments(max_mountains=self.hyperparameters['max_top_mountains'], max_height=self.hyperparameters['max_height_top_mountains'])
         #vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, frame_start=start, frame_end=end, net=self.net)
 
-        self.jumps_moments(min_frames=self.hyperparameters['jumps_min_frames'], max_jump_allowed = self.hyperparameters['jumps_max_allowed'], num_jumps = self.hyperparameters['jumps_max_num'])
+        #self.jumps_moments(min_frames=self.hyperparameters['jumps_min_frames'], max_jump_allowed = self.hyperparameters['jumps_max_allowed'], num_jumps = self.hyperparameters['jumps_max_num'])
         #vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, frame_start=start, frame_end=end, net=self.net)
 
         #self.remerge_tracks(margin=5)
 
-        self.slow_ball_moments(min_frames=self.hyperparameters['slow_balls_min_frames'], min_velocity=self.hyperparameters['slow_balls_min_velocity'])
+        #self.slow_ball_moments(min_frames=self.hyperparameters['slow_balls_min_frames'], min_velocity=self.hyperparameters['slow_balls_min_velocity'])
         #vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, frame_start=start, frame_end=end, net=self.net)
 
-        self.discontinuous_moments(min_frames=self.hyperparameters['disc_min_frames'], frames_disc=self.hyperparameters['disc_frames_disc'], max_jump_allowed = 0.15, min_occurrences=self.hyperparameters['disc_min_occurrences'])
+        #self.discontinuous_moments(min_frames=self.hyperparameters['disc_min_frames'], frames_disc=self.hyperparameters['disc_frames_disc'], max_jump_allowed = 0.15, min_occurrences=self.hyperparameters['disc_min_occurrences'])
         #vis.plot_tracks(self.tracks, self.frames_controller.frame_list, fps=60, frame_start=start, frame_end=end, net=self.net)
 
     def jumps_moments(self, min_frames, max_jump_allowed, num_jumps):
@@ -289,7 +320,7 @@ class PositionTrackerV2:
     def static_balls_moments(self, min_frames=60, min_diff_allowed = 0.0005):
         static = {}
         for track in self.tracks:
-            if len(track) > 1:
+            if len(track) > min_frames:
                 static_idx = []
 
                 start_static_fn = track.pifs[0].frame_number
@@ -308,9 +339,12 @@ class PositionTrackerV2:
                 static[track] = static_idx
 
 
+
+
         subtracks = []
         for track, static_moments in static.items():
             subtracks += Track.split_track(track, static_moments)
+
 
         self.tracks = subtracks
 

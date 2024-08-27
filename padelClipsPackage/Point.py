@@ -23,17 +23,49 @@ class Point:
 
 
 
-    def cook_shots_v2(self, min_length=30):
+    def cook_shots_v2(self, min_length=5):
         all_pifs = self.track.pifs
         shots = Point.segment_by_extrema(all_pifs, key_func_x=lambda pif: pif.x, key_func_y=lambda pif: pif.y)
+
+
+        shots = self.merge_shots(shots)
+
 
         self.shots = []
         for shot in shots:
             if shot[-1].frame_number - shot[0].frame_number >= min_length:
                 new_shot = ShotV2(shot)
                 self.shots.append(new_shot)
-        if self.shots[0].category is CategoryV2.NONE:
-            self.shots[0].category = CategoryV2.SERVE
+        if len(self.shots) > 0:
+            if self.shots[0].category is CategoryV2.NONE:
+                self.shots[0].category = CategoryV2.SERVE
+
+
+    def merge_shots(self, shots):
+        result = []
+        i = 0
+        threshold = self.game.net.y + self.game.net.height/2
+        while i < len(shots):
+            current_list = shots[i]
+
+            # If we're not at the last list, check if the next list exists and the conditions hold
+            if i < len(shots) - 1:
+                next_list = shots[i + 1]
+
+                # Check if all elements in the current list are below the threshold
+                # and all elements in the next list are above or equal to the threshold
+                if all(x.y < threshold for x in current_list) and all(y.y >= threshold for y in next_list):
+                    # If conditions are met, join the two lists
+                    result.append(current_list + next_list)
+                    i += 2  # Skip the next list as it's already joined
+                else:
+                    result.append(current_list)
+                    i += 1
+            else:
+                # Append the last list if no more lists to check
+                result.append(current_list)
+                i += 1
+        return result
 
 
 
@@ -99,7 +131,7 @@ class Point:
         extrema_indices = []
 
         n = len(arr)
-        arr = apply_kalman_filter_pifs(arr, obs=0.1, trans=0.03)
+        arr = apply_kalman_filter_pifs(arr, obs=0.2, trans=0.05)
 
         for i in range(1, n - 1):
             prev_val_y = key_func_y(arr[i - 1])
@@ -327,7 +359,7 @@ class Point:
             print(self.shots)
 
     def how_many_shots_by_player(self, tag):
-        return len([s for s in self.shots if s.hit_player == tag])
+        return len([s for s in self.shots if s.striker is not None and s.striker.tag == tag])
 
     def tag_shots(self, tagger):
         tagger()

@@ -15,8 +15,8 @@ players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2s
 players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_full/players_inference_features.npz"
 video_path = "/media/juliofgx/OS/2set_fixed.mp4"
 
-start = 18000
-end = 19800
+#start = 23700
+#end = 25200
 
 frames = Frame.load_from_excel(ball_excel, players_excel, mapping={'ball': {0: Label.BALL}, 'players': {0: Label.PLAYER, 1: Label.NET}})
 print("Frames loaded.")
@@ -29,7 +29,8 @@ def get_player_features(tag):
 
 player_features_dict = {str(int(key)): player_features[key] for key in player_features.files}
 
-game = Game(frames, fps, player_features_dict, start=start, end=end)
+#game = Game(frames, fps, player_features_dict, start=start, end=end)
+game = Game(frames, fps, player_features_dict)
 
 points = points_to_json(game.gameStats.top_x_longest_points(10))
 with open('/home/juliofgx/PycharmProjects/PadelClips/playtime_segments.json', 'w') as json_file:

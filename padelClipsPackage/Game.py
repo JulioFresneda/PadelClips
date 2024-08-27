@@ -34,7 +34,7 @@ class Game:
         Point.game = self
         ShotV2.game = self
         self.track_ball_v2()
-        Visuals.plot_points(self.tracks, self.points, self.net, self.fps )
+        #Visuals.plot_points(self.tracks, self.points, self.net, self.fps )
 
         print("Points loaded.")
 
