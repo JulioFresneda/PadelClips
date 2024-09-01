@@ -10,6 +10,7 @@ from padelClipsPackage.Shot import Position
 from padelClipsPackage.Track import *
 from padelClipsPackage.Visuals import Visuals
 from padelClipsPackage.predictPointModel import PredictPointModel
+from padelClipsTraining.predict import train_predict
 
 
 class PositionTrackerV2:
@@ -20,7 +21,7 @@ class PositionTrackerV2:
         self.players_boundaries = players_boundaries
         self.net = net
         # Load phase: Equivalence track-tag
-        self.tracks = self.load_tracks(delete_statics=True)
+        self.tracks = self.load_tracks(delete_statics=False)
         # Merge phase: Join consecutive tracks
 
 
@@ -32,13 +33,14 @@ class PositionTrackerV2:
 
         # Clean phase: Detect split conditions, like empty seconds, multiple non-static balls...
         #self.clean_tracks()
-        self.remove_static_tracks()
+        #self.remove_static_tracks()
         self.merge_tracks()
         #self.points = self.track_to_points()
         #
 
         # PREDICT FROM MODEL
-        Visuals.plot_tracks_with_net_and_players(self, self.net, self.players_boundaries, frame_start=23700, frame_end=25200)
+        #Visuals.plot_tracks_with_net_and_players(self, self.net, self.players_boundaries, frame_start=23700, frame_end=25200)
+        #train_predict.generate_features_df(self.tracks)
         self.predict_points(min_duration=0)
 
     def remove_static_tracks(self, min_frames=60, min_diff_allowed=0.005):

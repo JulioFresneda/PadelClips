@@ -9,22 +9,22 @@ import numpy as np
 class Inference:
     def __init__(self, ball_model_path, players_model_path):
         self.ball_model = YOLO(ball_model_path)
-        self.players_model = YOLO(players_model_path)
+        #self.players_model = YOLO(players_model_path)
 
     def inference(self, source, output_folder, conf):
         self.conf = conf
         ball_model = self.ball_model.track(source, stream=True, half=False, imgsz=1920, save=False, save_frames=False, show_conf=True,
                         verbose=True, show_labels=True, line_width=4, save_txt=False, save_conf=False)
 
-        player_model = self.players_model.track(source, stream=True, half=False, imgsz=1920, save=False, save_frames=False,
-                                     show_conf=True,
-                                     verbose=True, show_labels=True, line_width=4, save_txt=False, save_conf=False)
+        #player_model = self.players_model.track(source, stream=True, half=False, imgsz=1920, save=False, save_frames=False,
+        #                             show_conf=True,
+        #                             verbose=True, show_labels=True, line_width=4, save_txt=False, save_conf=False)
 
-        print("Inferencing players and net...")
-        players_df, players_ft = self.inference_to_df(player_model, add_features=True, track=True)
-        players_df.to_excel(os.path.join(output_folder, "players_inference.xlsx"), index=False)
-        players_ft = {f'{tag}': features for tag, features in zip(players_ft['tags'], players_ft['features'])}
-        np.savez_compressed(os.path.join(output_folder, "players_inference_features.npz"), **players_ft)
+        #print("Inferencing players and net...")
+        #players_df, players_ft = self.inference_to_df(player_model, add_features=True, track=True)
+        #players_df.to_excel(os.path.join(output_folder, "players_inference.xlsx"), index=False)
+        #players_ft = {f'{tag}': features for tag, features in zip(players_ft['tags'], players_ft['features'])}
+        #np.savez_compressed(os.path.join(output_folder, "players_inference_features.npz"), **players_ft)
 
         print("Inferencing ball...")
         ball_df, _ = self.inference_to_df(ball_model, track=True)
@@ -135,6 +135,6 @@ model_players = "/home/juliofgx/PycharmProjects/PadelClips/PadelClipsTraining/ru
 
 inference = Inference(model_ball, model_players)
 
-source = "/media/juliofgx/OS/1set.mp4"
+source = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set/1set_fixed.mp4"
 inference.inference(source, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set", conf=0.25)
 

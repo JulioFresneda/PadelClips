@@ -8,13 +8,14 @@ from padelClipsPackage.Game import Game
 import numpy as np
 
 
-from padelClipsPackage.ComposeVideo import points_to_json, json_points_to_video
+from padelClipsPackage.ComposeVideo import points_to_json, json_points_to_video, ComposeVideo
 
-ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_full/ball_inference.xlsx"
-players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_full/players_inference.xlsx"
-players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_full/players_inference_features.npz"
-video_path = "/media/juliofgx/OS/2set_fixed.mp4"
-
+ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/ball_inference.xlsx"
+players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/players_inference.xlsx"
+players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/players_inference_features.npz"
+video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_fixed.mp4"
+making_path = "/home/juliofgx/PycharmProjects/PadelClips/making"
+resources_path = "/home/juliofgx/PycharmProjects/PadelClips/resources"
 #start = 23700
 #end = 25200
 
@@ -32,7 +33,5 @@ player_features_dict = {str(int(key)): player_features[key] for key in player_fe
 #game = Game(frames, fps, player_features_dict, start=start, end=end)
 game = Game(frames, fps, player_features_dict)
 
-points = points_to_json(game.gameStats.top_x_longest_points(10))
-with open('/home/juliofgx/PycharmProjects/PadelClips/playtime_segments.json', 'w') as json_file:
-    json.dump(points, json_file, indent=4)
-json_points_to_video(points, video_path, "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_full/points.mp4", margin=60)
+output_path = '/home/juliofgx/PycharmProjects/PadelClips/output.mp4'
+video = ComposeVideo(game, making_path, resources_path, video_path, output_path)

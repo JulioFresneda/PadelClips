@@ -22,7 +22,8 @@ class FramesController:
         frames = self.frame_list[start:end]
         pos = []
         for frame in frames:
-            pos.append(frame.player(tag))
+            player = frame.player(tag)
+            pos.append((player.x, player.y + player.height/2))
         return pos
 
 

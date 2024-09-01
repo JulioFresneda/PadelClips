@@ -2,84 +2,211 @@ from padelClipsPackage.Point import Point, Shot
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-# Match
-# - Top 10 longest points - OK
-# - Heatmap for each player
-# - Average shots per point - OK
-# - Tags: Globes, hot match, etc
-
-# Teams
-# - Top 10 points per team
-# - How the team played
-
-# Players
-# - Top 10 points with more shots by player - OK
-# - Km ran - OK
-# - Top 3 points where player ran the most - OK
-# - Type of player: Globes, smashes, etc
-# - % of rights and reves - OK
-# - % of shots to the net
-
-# Trophies
-# - Player that ran the most - OK
-# - Player with most globes
-# - Player that did more shots - OK
-# - Player most freezed - OK
-# - Player that goes more to the net - OK
-# - Player that did more shots to the net
-# - Negative trophies
+from padelClipsPackage.PositionInFrame import PositionInFrame
+from padelClipsPackage.Shot import Category, Position
 
 
 class GameStats:
-    def __init__(self, frames, points, net):
-        self.frames_controller = frames
-        self.points = points
-        self.net = net
+    def __init__(self, game):
+        self.frames_controller = game.frames_controller
+        self.points = game.points
+        self.net = game.net
+        self.game = game
+
+    #########################################################
+    # WELCOME TO THE AWESOME GAME AWARDS AND GAME STATS!
+    #
+    # MEDALLAS (INDIVIDUALES)
+    #   -   Nube        - Más globos
+    #   -   Destello    - Smash más rápido
+    #   -   Trueno      - Mayor número de smashes
+    #
+    #   -   Bastión     - Mas cerca de red
+    #   -   Vanguardia  - Mas lejos de red
+    #
+    #   -   Nevera      - Menos bolas recibidas
+    #   -   Iman        - Mas bolas recibidas
+    #   -   Obsesivo    - Mas bolas al mismo rival
+    #
+    #   -   Cortarollos - Acaba puntos (no estoy seguro por imprecision)
+    #
+    #   -   Pulpo       - % izq-dcha 50/50
+    #   -   Hipopotamo  - Jugador mas territorial (acaparador)
+    #
+    #   -   MVP         - Mejor jugador, basado en stats
+    #
+    # TROFEOS (A PAREJAS)
+    #   -   Trofeo de agresividad  - Pareja mas cercana a la red
+    #   -   Trofeo de agilidad     - Pareja con mas metros corridos
+    #   -   Trofeo de polivalencia - Pareja donde los jugadores cambian mas de posicion
+    #
 
     def print_game_stats(self):
-        print("------- Match stats -------")
+        print("------- WELCOME TO THE AWESOME GAME AWARDS AND GAME STATS! -------")
+        print("\n---------- MEDALLAS ----------")
+        print("----------> Nube")
+        nube = self.nube()
+        print(nube)
 
-        top_3_longest_points = self.top_x_longest_points(3)
-        print("\nTop 3 longest points: ")
-        print(top_3_longest_points)
+        print("----------> Trueno")
+        trueno = self.trueno()
+        print(trueno)
 
-        avg_shots_per_point = int(self.average_shots_per_point())
-        print("\nAverage shots per point: " + str(avg_shots_per_point))
+        print("----------> Destello")
+        destello = self.destello()
+        print(destello)
 
-        for player in Point.game.players:
-            print("\n\n------- Player stats: " + player.tag + " -------")
-            print("\nTop 3 points with more shots by player")
-            top_shots_by_player = self.top_x_points_more_shots_by_player(3, player.tag)
-            print(top_shots_by_player)
+        print("----------> Bastion")
+        bastion = self.bastion()
+        print(bastion)
 
-            print("\nMeters ran: " + str(self.meters_ran(player.tag)))
-            print("\nTop 3 points where player ran the most")
-            top = self.top_x_points_where_player_ran_the_most(3, player.tag)
+        print("----------> Vanguardia")
+        vanguardia = self.vanguardia()
+        print(vanguardia)
 
-            #r, b = self.rights_and_backhands(player.tag)
-            #print(
-            #    "\nRights: " + str(r) + ", backhands: " + str(b) + ", backhands percentage: " + str(b / r * 100) + "%")
+        print("----------> Nevera")
+        nevera = self.nevera()
+        print(nevera)
 
-        print("\n\n------- Trophies -------")
-        print("\nPlayer that ran the most: " + self.player_that_ran_the_most().tag)
-        shots = self.player_shot_number()
+        print("----------> Iman")
+        iman = self.iman()
+        print(iman)
 
-        print("\nPlayer that did more shots: " + shots[-1][0] + ", " + str(shots[-1][1]) + " shots")
-        print("\nPlayer most freezed: " + shots[0][0] + ", " + str(shots[0][1]) + " shots")
+        print("----------> Obsesivo")
+        obsesivo = self.obsesivo()
+        print(obsesivo)
 
+        print("----------> Pulpo")
+        pulpo = self.pulpo()
+        print(pulpo)
+
+        print("----------> Hipopotamo")
+        hipopotamo = self.hipopotamo()
+        print(hipopotamo)
+
+        print("----------> MVP")
+        mpv = self.mvp()
+
+    def mvp(self):
+        print("Por programar")
+
+    def hipopotamo(self):
+        positions = {}
+        for player in self.game.players:
+            positions[player.tag] = []
+        for frame in self.game.frames_controller.frame_list:
+            for player in frame.players():
+                left = self.game.players_boundaries_horizontal[player.position]['left']
+                right = self.game.players_boundaries_horizontal[player.position]['right']
+                pos = self.scale_position(player.x, left, right)
+                positions[player.tag].append(pos)
+
+        variances = []
+        for player, positions in positions.items():
+            variances.append((player, np.std(positions)))
+
+        return sorted(variances, key=lambda p: p[1])[-1]
+
+    def pulpo(self):
+        players_ordered = []
+        for player in self.game.players:
+            r, l = self.rights_and_backhands(player.tag)
+            players_ordered.append((player.tag, abs(l - r)))
+        return sorted(players_ordered, key=lambda p: p[1])[0]
+
+    def scale_position(self, x, a, b):
+        return abs((x - a) / (b - a))
+
+    def nevera(self):
+        return self.get_player_most_shots()[-1]
+
+    def iman(self):
+        return self.get_player_most_shots()[0]
+
+    def obsesivo(self):
+        shots = self.get_shots()
+        striker_receiver = {}
+        for shot in shots:
+            if shot.category is not Category.SERVE:
+                if shot.striker is not None and shot.receiver is not None:
+                    if (shot.striker.tag, shot.receiver.tag) not in striker_receiver.keys():
+                        striker_receiver[(shot.striker.tag, shot.receiver.tag)] = 0
+                    striker_receiver[(shot.striker.tag, shot.receiver.tag)] += 1
+        count_shots_by_player = []
+        for players, shots in striker_receiver.items():
+            count_shots_by_player.append((players, shots))
+        count_shots_by_player = sorted(count_shots_by_player, key=lambda x: x[1], reverse=True)
+        return count_shots_by_player[0]
+
+    def bastion(self):
         distances = self.player_distances_to_the_net()
-        print("\nPlayer that went most to the net: " + distances[0][0])
+        return distances[-1]
 
-        # self.players_heatmap()
+    def vanguardia(self):
+        distances = self.player_distances_to_the_net()
+        return distances[0]
+
+    def nube(self):
+        return self.get_player_most_shots(Category.FULL_GLOBE)[0]
+
+    def trueno(self):
+        return self.get_player_most_shots(Category.SMASH)[0]
+
+    def destello(self):
+        shots = self.get_shots()
+        fastest_shot = None
+        fastest_vel = float('inf')
+
+        for shot in shots:
+            if shot.category is Category.SMASH:
+                vel = PositionInFrame.speed_list(shot.pifs, scale=100)
+                if fastest_vel > vel:
+                    fastest_shot = shot
+                    fastest_vel = vel
+        return fastest_shot, fastest_vel
+
+    def get_player_most_shots(self, category=None):
+        shots = self.get_shots()
+        shots_by_player = {}
+        for shot in shots:
+            if shot.category is category or category is None:
+                if shot.striker is not None:
+                    if shot.striker.tag not in shots_by_player.keys():
+                        shots_by_player[shot.striker.tag] = []
+                    shots_by_player[shot.striker.tag].append(shot)
+        count_shots_by_player = []
+        for player, shots in shots_by_player.items():
+            count_shots_by_player.append((player, len(shots)))
+        count_shots_by_player = sorted(count_shots_by_player, key=lambda x: x[1], reverse=True)
+        return count_shots_by_player
+
+    def categorize_player_shots(self):
+        categories = {}
+        for player in self.game.players:
+            r, l = self.rights_and_backhands(player.tag)
+            categories[player.tag] = {Category.SMASH: 0, Category.LOW_VOLLEY: 0, 'left': l, 'right': r}
+
+        for shot in self.get_shots():
+            if shot.striker is not None:
+                if shot.category is Category.SMASH or shot.category is Category.LOW_VOLLEY:
+                    categories[shot.striker.tag][shot.category] += 1
+
+        return categories
+
+
+
+
+    def get_shots(self):
+        shots = []
+        for point in self.points:
+            for shot in point.shots:
+                shots.append(shot)
+        return shots
 
     def top_x_longest_points(self, x):
-        top = sorted(self.points, key=lambda p: p.end() - p.start(), reverse=True)
+        top = sorted(self.points, key=lambda p: p.duration(), reverse=True)
         if len(top) > x:
             top = top[:x]
-        if x == 10:
-            for shot in top[3].shots:
-                shot.check_smash()
         return top
 
     def top_x_more_shots(self, x):
@@ -139,8 +266,8 @@ class GameStats:
         for point in self.points:
             shots = [s for s in point.shots if s.striker is not None and s.striker.tag == player_tag]
             for shot in shots:
-                fn = shot.hit.frame_number
-                ball_x_pos = shot.hit.x
+                fn = shot.striker_pif.frame_number
+                ball_x_pos = shot.striker_pif.x
                 player = self.frames_controller.get(fn).player(player_tag)
                 if player is not None:
                     player_x_pos = player.x
@@ -183,14 +310,9 @@ class GameStats:
                     shots.append(shot)
         return shots
 
-
-
-
-
-
     def player_distances_to_the_net(self):
         distances = {}
-        for player in Point.game.players:
+        for player in self.game.players:
             distances[player.tag] = self.average_player_distance_to_the_net(player.tag)
         return sorted(distances.items(), key=lambda item: item[1])
 
@@ -200,7 +322,16 @@ class GameStats:
         for point in self.points:
             for frame in point.point_frames():
                 player_pos = frame.player(player_tag)
-                total_distance += abs((player_pos.y + player_pos.height / 2) - (self.net.y + self.net.height / 2))
+                net = self.net.y + self.net.height / 2
+                player = player_pos.y + player_pos.height / 2
+                if net > player:
+                    wall = self.game.players_boundaries_vertical[Position.TOP]
+                else:
+                    wall = self.game.players_boundaries_vertical[Position.BOTTOM]
+
+                distance = self.scale_position(player, wall, net)
+
+                total_distance += distance
                 shots_to_divide += 1
         return total_distance / shots_to_divide
 

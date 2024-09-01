@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from scipy.ndimage import uniform_filter1d
 
 class PredictPointModel:
-    model_path = '/home/juliofgx/PycharmProjects/PadelClips/padelClipsTraining/model.keras'
+    model_path = '/home/juliofgx/PycharmProjects/PadelClips/model.keras'
     def __init__(self, tracks=None, true_labels=None):
         self.true_labels = true_labels
         self.pifs = []
@@ -35,7 +35,7 @@ class PredictPointModel:
     def predict(pifs):
         loaded_model = tf.keras.models.load_model(PredictPointModel.model_path)
 
-        sequence_length = 60
+        sequence_length = 180
         df = PredictPointModel.pifs_to_df(pifs)
 
         # Replace inf and -inf with NaN
@@ -62,12 +62,12 @@ class PredictPointModel:
             frame_seqs.append(frame_numbers[i + sequence_length - 1])  # Track the corresponding frame number
 
         X = np.array(X)
-        y = np.array(y)
 
         predictions = loaded_model.predict(X)
 
         # Convert predictions to binary labels
         predictions_binary = (predictions > 0.5).astype(int)
+        xd = predictions_binary
 
         # Apply smoothing
         predictions_binary = uniform_filter1d(predictions_binary.flatten(), size=5, mode='nearest')
@@ -139,9 +139,9 @@ class PredictPointModel:
         return merged_segments
 
     @staticmethod
-    def learn():
-        sequence_length = 60
-        df = pd.read_excel("/home/juliofgx/PycharmProjects/PadelClips/pifs_2set.xlsx")
+    def learn(features_path):
+        sequence_length = 180
+        df = pd.read_excel(features_path)
 
         # Replace inf and -inf with NaN
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -171,7 +171,7 @@ class PredictPointModel:
         model = Sequential()
         model.add(LSTM(100, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
         model.add(Dropout(0.2))
-        model.add(LSTM(50, return_sequences=False))
+        model.add(LSTM(100, return_sequences=False))
         model.add(Dropout(0.2))
         model.add(Dense(1, activation='sigmoid'))
 
@@ -179,7 +179,7 @@ class PredictPointModel:
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
         # Train the model
-        model.fit(X_train, y_train, epochs=20, batch_size=64, validation_split=0.2)
+        model.fit(X_train, y_train, epochs=30, batch_size=128, validation_split=0.2)
 
         # Evaluate the model
         loss, accuracy = model.evaluate(X_test, y_test)
@@ -215,7 +215,6 @@ class PredictPointModel:
         for i in range(len(pifs)):
             print(f"PIFs to df: {i}/{len(pifs)}", end='\r')
             df.at[i, 'fn'] = pifs[i].frame_number
-
             if i >= 1:
                 df.at[i, 'vx'] = PositionInFrame.vx(pifs[i - 1], pifs[i])
                 df.at[i, 'vy'] = PositionInFrame.vy(pifs[i - 1], pifs[i])
@@ -233,8 +232,8 @@ class PredictPointModel:
 
         return df
 
-    def initialize_df(self):
-        columns = ['fn', 'vx', 'vy', 'speed', 'ax', 'ay', 'acc', 'angle', 'jx', 'jy', 'jerk', 'ti', 'label']
+    def initialize_df(self, output_path):
+        columns = ['vx', 'vy', 'speed', 'ax', 'ay', 'acc', 'angle', 'jx', 'jy', 'jerk', 'ti', 'label']
         df = pd.DataFrame(columns=columns)
         pifs = self.pifs
 
@@ -246,7 +245,6 @@ class PredictPointModel:
                     label_true = 1
             if i >= 3:
                 row = {
-                    'fn': pifs[i].frame_number,
                     'vx': PositionInFrame.vx(pifs[i - 1], pifs[i]),
                     'vy': PositionInFrame.vy(pifs[i - 1], pifs[i]),
                     'speed': PositionInFrame.speed(pifs[i - 1], pifs[i]),
@@ -261,7 +259,6 @@ class PredictPointModel:
                 }
             elif i >= 2:
                 row = {
-                    'fn': pifs[i].frame_number,
                     'vx': PositionInFrame.vx(pifs[i - 1], pifs[i]),
                     'vy': PositionInFrame.vy(pifs[i - 1], pifs[i]),
                     'speed': PositionInFrame.speed(pifs[i - 1], pifs[i]),
@@ -276,7 +273,6 @@ class PredictPointModel:
                 }
             elif i >= 1:
                 row = {
-                    'fn': pifs[i].frame_number,
                     'vx': PositionInFrame.vx(pifs[i - 1], pifs[i]),
                     'vy': PositionInFrame.vy(pifs[i - 1], pifs[i]),
                     'speed': PositionInFrame.speed(pifs[i - 1], pifs[i]),
@@ -291,7 +287,6 @@ class PredictPointModel:
                 }
             else:
                 row = {
-                    'fn': pifs[i].frame_number,
                     'vx': np.nan,
                     'vy': np.nan,
                     'speed': np.nan,
@@ -308,8 +303,8 @@ class PredictPointModel:
             row_df = pd.DataFrame([row])
             df = pd.concat([df, row_df], ignore_index=True)
 
-        df.to_excel("/home/juliofgx/PycharmProjects/PadelClips/pifs_2set.xlsx")
+        df.to_excel(output_path)
 
 
 
-#PredictPointModel.predict()
+#PredictPointModel.learn()

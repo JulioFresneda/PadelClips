@@ -1,3 +1,4 @@
+import json
 import math
 from enum import Enum
 import os, re
@@ -33,8 +34,10 @@ class Frame:
             return [obj for obj in self.objects if obj.class_label == 1]
         else:
             objs = [obj for obj in self.objects if obj.class_label == 1]
-
-            return [ obj for obj in objs if obj.position in positions]
+            if isinstance(positions, list):
+                return [ obj for obj in objs if obj.position in positions]
+            else:
+                return [obj for obj in objs if obj.position is positions]
 
     def balls(self):
         return [obj for obj in self.objects if obj.class_label == 0]
@@ -87,6 +90,9 @@ class Frame:
                 Player(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'],
                        tag=str(int(row['id']))))
 
+
+        frame_info = Frame.remove_static_balls(frame_info)
+
         # Determine the range of frame numbers
         max_frame = int(max(frame_info.keys()))
 
@@ -106,6 +112,59 @@ class Frame:
                 frames.append(Frame(frame_number, None))
 
         return frames
+
+
+    @staticmethod
+    def remove_static_balls(frame_dict, min_static_frames=60, max_variance = 0.05):
+        # Dictionary to keep track of the last seen BALL with its y-value and consecutive static frames for each tag
+        last_seen = {}
+
+        # Iterate over each frame in order
+        for frame_number in sorted(frame_dict.keys()):
+            # Iterate over the objects in the current frame
+            for obj in frame_dict[frame_number]:
+                if obj.class_label_name == 'BALL':
+                    tag = obj.tag
+                    y = obj.y
+
+                    # Check if we have seen this tag before
+                    if tag in last_seen:
+                        last_y, static_count = last_seen[tag]
+
+                        # Check if the y-value is within the tolerance of 0.05
+                        if abs(y - last_y) <= max_variance:
+                            static_count += 1
+                        else:
+                            # Reset the static count if the ball has moved
+                            static_count = 0
+
+                        # Update the last seen y-value and static count for this tag
+                        last_seen[tag] = (y, static_count)
+                    else:
+                        # If this is the first time we've seen this tag, record the y-value and initialize static count
+                        last_seen[tag] = (y, 0)
+
+        # Second pass: Remove static balls from frames
+        for frame_number in sorted(frame_dict.keys()):
+            # List to keep track of balls to remove
+            balls_to_remove = []
+
+            # Iterate over the objects in the current frame
+            for obj in frame_dict[frame_number]:
+                if obj.class_label_name == 'BALL':
+                    tag = obj.tag
+                    _, static_count = last_seen.get(tag, (None, 0))
+
+                    # If the ball has been static for at least `min_static_frames`, mark it for removal
+                    if static_count >= min_static_frames:
+                        balls_to_remove.append(obj)
+
+            # Remove the static balls from the current frame
+            for ball in balls_to_remove:
+                frame_dict[frame_number].remove(ball)
+
+        return frame_dict
+
 
     @staticmethod
     def load_frames(yolo_path, frames_path=None, mapping={0: Label.BALL}):

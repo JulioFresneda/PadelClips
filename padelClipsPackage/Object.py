@@ -49,10 +49,10 @@ class Object:
 class Player(Object):
     def __init__(self, class_label, x_center, y_center, width, height, conf, tag=None):
         # Initialize the base class (Object)
+        self.position = None
         super().__init__(class_label, x_center, y_center, width, height, conf, tag)
 
-    def tag_position(self, position: PlayerPosition):
-        self.position = position
+
 
     def __str__(self):
         print("Player " + self.tag)
@@ -61,24 +61,6 @@ class Player(Object):
         return f"Player({self.tag})"
 
 
-    @staticmethod
-    def position_players(players):
-        # Sort players by y coordinate in descending order (from top to bottom)
-        if len(players) == 4:
-            sorted_by_y = sorted(players, key=lambda player: player.y, reverse=False)
-
-            # The top half of the list will be "Over", the bottom half will be "Under"
-            top_players = sorted_by_y[:2]
-            bottom_players = sorted_by_y[2:]
-
-            # Sort top and bottom halves by x coordinate (from left to right)
-            top_left, top_right = sorted(top_players, key=lambda player: player.x)
-            bottom_left, bottom_right = sorted(bottom_players, key=lambda player: player.x)
-
-            top_left.tag_position(PlayerPosition.OVER_LEFT)
-            top_right.tag_position(PlayerPosition.OVER_RIGHT)
-            bottom_left.tag_position(PlayerPosition.UNDER_LEFT)
-            bottom_right.tag_position(PlayerPosition.UNDER_RIGHT)
 
 
 
@@ -91,10 +73,7 @@ class PlayerTemplate:
         self.template_features = template_features
         self.frame_number = frame_number
         self.player_object = object
-        self.position_oocam = None
 
-    def set_position_oocam(self, x, y):
-        self.position_oocam = (x, y)
 
     def __str__(self):
         print("Player " + str(self.tag))

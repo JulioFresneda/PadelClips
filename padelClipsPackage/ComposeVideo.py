@@ -1,233 +1,327 @@
+import io
 import os
 import subprocess
 import re
 import sys
 import json
 import subprocess
-
+import matplotlib.pyplot as plt
+import numpy as np
 from moviepy.video.VideoClip import ImageClip
 from moviepy.video.compositing.concatenate import concatenate_videoclips
-from moviepy.video.fx.fadein import fadein
 from moviepy.video.io.VideoFileClip import VideoFileClip
-
+from spire.presentation import FileFormat
+from moviepy.editor import VideoFileClip, concatenate_videoclips, vfx
 from padelClipsPackage import Game
 
-from pptx import Presentation
+from bs4 import BeautifulSoup
 
 from padelClipsPackage.Point import Shot
+from padelClipsPackage.Shot import Category, Position
 from padelClipsPackage.aux import extract_frame_from_video, crop_and_save_image
-from moviepy.editor import VideoFileClip, concatenate_videoclips, vfx
+
+import base64
+import ssl
+import hashlib
+
+from pptx import Presentation
+from PIL import Image
+import os
+import base64
+
+from pptx import Presentation
+from pptx.util import Inches
+
+import aspose.slides as slides
+
 
 class ComposeVideo:
-    def __init__(self, game: Game, slides_dir, video_path):
-        self.game = game
-        self.slides_dir = slides_dir
-        self.video_path = video_path
-
-        self.cover = os.path.join(slides_dir, "cover.png")
-        self.game_resume = os.path.join(slides_dir, "game_resume.png")
-        self.top3player = os.path.join(slides_dir, "top3player.png")
-
-        self.game_stats = os.path.join(slides_dir, "game_stats.pptx")
-        self.player_stats = os.path.join(slides_dir, "player_stats.pptx")
-        self.player_stats_png = {}
+    def __init__(self, game: Game, making_path, resources_path, video_path, output_path):
         self.player_images = {}
+        self.game = game
+        self.gameStats = game.gameStats
+        self.making_path = making_path
+        self.resources_path = resources_path
+        self.video_path = video_path
+        self.output_path = output_path
+
         self.get_player_images()
+        self.generate_graphs()
 
-        self.cook_pptx()
-        self.compose_with_videos()
+        for player in self.game.players:
+            input_file = self.resources_path + '/player_1.html'
+            self.generate_html(player, input_file)
 
-    def compose_with_videos(self):
-        #self.compose_game_resume()
-        #for player in self.game.get_players():
-        #    self.compose_top3_by_player(player.tag)
+            input_file = self.resources_path + '/player_2.html'
+            self.generate_html(player, input_file)
 
-        self.create_video_sequence()
-
-    def compose_top3_by_player(self, tag):
-        points = self.game.gameStats.top_x_points_more_shots_by_player(3, tag)
-        points_json = points_to_json(points)
-        json_points_to_video(points_json, self.video_path, os.path.join(self.slides_dir, "top3_" + tag + ".mp4"))
-
-    def compose_game_resume(self):
-        points = self.game.gameStats.top_x_longest_points(20)
-        points_json = points_to_json(points)
-        json_points_to_video(points_json, self.video_path, os.path.join(self.slides_dir, "resume.mp4"))
-
-    def cook_pptx(self):
-        self.cook_pptx_global()
-        for player in self.game.get_players():
-            self.cook_pptx_player(player.tag)
-
-    def cook_pptx_player(self, tag):
-        player_stats_pptx = Presentation(self.player_stats)
-
-        shots = self.game.gameStats.player_shot_number(tag)
-        self.replace_placeholder_text(player_stats_pptx, "{{ shots }}", str(shots))
-
-        meters_ran = int(self.game.gameStats.meters_ran(tag))
-        self.replace_placeholder_text(player_stats_pptx, "{{ meters_run }}", str(meters_ran) + "m")
-
-        globes = len(self.game.gameStats.player_shots(tag, Shot.Category.GLOBE))
-        self.replace_placeholder_text(player_stats_pptx, "{{ globes }}", str(globes) + "m")
-
-        self.replace_placeholder_text(player_stats_pptx, "{{ player }}", "Player " + tag )
-
-        self.replace_image_in_slide(player_stats_pptx, self.player_images[tag])
-
-        player_stats_pptx.save(os.path.join(self.slides_dir,'player_' + tag + '_cooked.pptx'))
-        self.player_stats_png[tag] = os.path.join(self.slides_dir, 'player_' + tag + '_cooked.png')
-        self.convert_pptx_to_png(os.path.join(self.slides_dir, 'player_' + tag + '_cooked.pptx'), self.slides_dir)
+        self.compose_video()
 
 
-    def cook_pptx_global(self):
-        game_stats_pptx = Presentation(self.game_stats)
-
-        points = self.game.gameStats.total_points()
-        self.replace_placeholder_text(game_stats_pptx, "{{ points }}", str(points))
-
-        shots = self.game.gameStats.total_shots()
-        self.replace_placeholder_text(game_stats_pptx, "{{ shots }}", str(shots))
-
-        meters_ran = int(self.game.gameStats.overall_meters_ran())
-        self.replace_placeholder_text(game_stats_pptx, "{{ meters_run }}", str(meters_ran) + "m")
-
-        avg_shots = int(self.game.gameStats.average_shots_per_point())
-        self.replace_placeholder_text(game_stats_pptx, "{{ avg_shots_point }}", str(avg_shots))
-
-        game_stats_pptx.save(os.path.join(self.slides_dir,'game_stats_cooked.pptx'))
-        self.game_stats_png = os.path.join(self.slides_dir, 'game_stats_cooked.png')
-        self.convert_pptx_to_png(os.path.join(self.slides_dir, 'game_stats_cooked.pptx'), self.slides_dir)
+    def compose_video(self):
+        points = self.game.gameStats.top_x_longest_points(10)
+        self.make_clips(points, margin=60)
 
 
 
+    def make_clips(self, points, margin):
+
+        temp_clips = []
+
+        for i in range(len(points), 0, -1):
+            print("Extracting point " + str(i), end='\r')
+            temp_clip_path = f"{self.making_path}/temp_clip_{i}.mp4"
+            start = points[i - 1].start() - margin
+            end = points[i - 1].end() + margin
+            overlay_path = f"{self.resources_path}/points/{i}.mp4"
+            if not os.path.exists(temp_clip_path):
+                extract_clip(self.video_path, start, end, temp_clip_path, overlay_path)
+            temp_clips.append(temp_clip_path)
+
+        print("Merging clips...")
+
+        image_filenames = []
+        for player in self.game.players:
+            image_filenames.append(f"{self.making_path}/player_1_{player.tag}.png")
+            image_filenames.append(f"{self.making_path}/player_2_{player.tag}.png")
+
+        self.concatenate_clips_with_transition(temp_clips, self.output_path, image_filenames)
+
+        # Optionally, clean up temporary clips
+        for clip in temp_clips:
+            os.remove(clip)
+            pass
+
+    def concatenate_clips_with_transition(self, file_names, output_filename, image_filenames, transition_duration=1):
+        # Convert transition_duration to float to avoid type issues
+        transition_duration = float(transition_duration)
+
+        # List to hold video clips with transitions
+        clips_with_transitions = []
+
+        # Load clips and apply fade in and fade out transitions
+        start_filename = f"{self.resources_path}/start.mp4"
+        clip = VideoFileClip(start_filename)
+        clip = clip.resize(newsize=(3840, 2160))
+        clip = clip.fx(vfx.fadein, transition_duration).fx(vfx.fadeout, transition_duration)
+        clips_with_transitions.append(clip)
+
+        for image_filename in image_filenames:
+            image_clip = ImageClip(image_filename, duration=5)  # 5 seconds duration for each image
+            clips_with_transitions.append(image_clip)
+
+        for filename in file_names:
+            clip = VideoFileClip(filename)
+            clip = clip.fx(vfx.fadein, transition_duration).fx(vfx.fadeout, transition_duration)
+            clips_with_transitions.append(clip)
 
 
-    def replace_placeholder_text(self, prs, placeholder, replacement):
-        # Iterate through each slide
-        for slide in prs.slides:
-            # Iterate through each shape within the slide
-            for shape in slide.shapes:
-                if not shape.has_text_frame:
-                    continue
-                text_frame = shape.text_frame
-                # Iterate through each paragraph in the text frame
-                for paragraph in text_frame.paragraphs:
-                    for run in paragraph.runs:
-                        if placeholder in run.text:
-                            # Replace the placeholder with the replacement text
-                            run.text = run.text.replace(placeholder, replacement)
+
+        # Concatenate clips with transitions
+        final_clip = concatenate_videoclips(clips_with_transitions, method="compose")
+
+        # Output file
+        final_clip.write_videofile(output_filename, codec="libx264", fps=60)
+
+        return output_filename
+
+    def generate_html(self, player, input_file):
+         # Replace with your actual file path
+
+        with open(input_file, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+
+
+        custom_names = {'A':'Macho alfalfa', 'B':"El puto", 'C':"Primo de Raul", 'D':"Heterocurioso"}
+
+
+        # Replace the placeholders with actual player data
+        html_content = html_content.replace('{{ tag }}', player.tag)
+        html_content = html_content.replace('{{ keyname }}', custom_names[player.tag])
+        html_content = html_content.replace('player.png', self.making_path + f'/{player.tag}.png')
+
+        position = "Abajo" if player.player_object.position is Position.BOTTOM else "Arriba"
+        html_content = html_content.replace('{{ position }}', position)
+        teammate = None
+        for p in self.game.players:
+         if p.tag != player.tag and p.player_object.position is player.player_object.position:
+             teammate = p.tag
+        html_content = html_content.replace('{{ tag_teammate }}', teammate)
+
+        if '1.html' in input_file:
+            self.generate_html_1(html_content, player)
+        else:
+            self.generate_html_2(html_content, player)
+
+    def generate_html_2(self, html_content, player):
+        html_content = html_content.replace('{{ mrun }}', str(int(self.game.gameStats.meters_ran(player.tag))) + ' metros')
+
+        output_file = self.making_path + '/player_2_' + player.tag + '.html'  # Replace with your desired output file path
+
+        with open(output_file, 'w', encoding='utf-8') as file:
+            file.write(html_content)
+
+        png_output = self.making_path + '/player_2_' + player.tag + '.png'
+        self.html_to_png(output_file, png_output)
+
+    def generate_html_1(self, html_content, player):
+        html_content = html_content.replace('{{ nshots }}', str(self.game.gameStats.player_shot_number(player.tag)))
+
+        # Replace the image placeholders with the corresponding player-specific images
+
+        html_content = html_content.replace('heatmap.png', self.making_path + f'/heatmap_{player.tag}.png')
+        html_content = html_content.replace('shots_chart.png', self.making_path + f'/shots_chart_{player.tag}.png')
+
+        # Write the modified HTML content back to a file (optional)
+        output_file = self.making_path + '/player_1_' + player.tag + '.html'  # Replace with your desired output file path
+
+        with open(output_file, 'w', encoding='utf-8') as file:
+            file.write(html_content)
+
+        png_output = self.making_path + '/player_1_' + player.tag + '.png'
+        self.html_to_png(output_file, png_output)
+
+    def html_to_png(self, html_file_path, output_png_path, resolution="3840x2160"):
+        """
+        Convert an HTML file to a PNG image using wkhtmltoimage with 4K resolution.
+
+        :param html_file_path: Path to the input HTML file.
+        :param output_png_path: Path to the output PNG file.
+        :param resolution: The resolution of the output image. Default is "3840x2160" (4K).
+        """
+        try:
+            # Call wkhtmltoimage to convert HTML to PNG
+            subprocess.run(
+                [
+                    'wkhtmltoimage',
+                    '--enable-local-file-access',
+                    '--width', resolution.split('x')[0],
+                    '--height', resolution.split('x')[1],
+                    html_file_path,
+                    output_png_path
+                ],
+                check=True
+            )
+            print(f"Successfully converted {html_file_path} to {output_png_path} in 4K resolution.")
+        except subprocess.CalledProcessError as e:
+            print(f"An error occurred while converting HTML to PNG: {e}")
+
+    def generate_graphs(self):
+        for player in self.game.players:
+            stats = self.gameStats.categorize_player_shots()
+            self.generate_shots_graph(stats[player.tag], player.tag)
+
+            pos_data = self.game.frames_controller.get_player_positions(player.tag)
+            pos_data = self.scale_position(pos_data, player.player_object.position)
+            self.generate_heatmap(pos_data, player.tag)
+
+    def scale_position(self, pos_data, player_position):
+
+        up = self.game.players_boundaries_vertical[Position.TOP]
+        bottom = self.game.players_boundaries_vertical[Position.BOTTOM]
+        left = self.game.players_boundaries_horizontal[player_position]['left']
+        right = self.game.players_boundaries_horizontal[player_position]['right']
+
+        def scale_position(data, a, b):
+            return abs((data - a) / (b - a))
+
+        scaled = []
+        for pos in pos_data:
+            x = scale_position(pos[0], left, right)
+            y = scale_position(2 * (1 - pos[1]), up, bottom)
+            scaled.append((x, y))
+        return scaled
+
+    def generate_heatmap(self, data, tag):
+
+        # Extract x and y coordinates
+        x_values, y_values = zip(*data)
+
+        # Create a 2D histogram (heatmap) from the x and y values
+        heatmap, xedges, yedges = np.histogram2d(x_values, y_values, bins=50, range=[[0, 1], [0, 1]])
+
+        # Create the figure with a 1:2 aspect ratio (taller than wide) without the legend
+        fig, ax = plt.subplots(figsize=(5, 10))
+
+        # Plot the heatmap
+        cax = ax.imshow(heatmap.T, extent=[0, 1, 0, 1], origin='lower', cmap='coolwarm', aspect='auto')
+
+        # Add continuous horizontal and vertical lines in the middle with even wider lines
+        ax.axhline(y=0.5, color='white', linestyle='-', linewidth=8)
+        ax.axvline(x=0.5, color='white', linestyle='-', linewidth=8)
+
+        # Remove labels and ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # Set the coordinate range from 0 to 1 for both axes
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        plt.savefig(self.making_path + '/heatmap_' + tag + '.png', dpi=300, bbox_inches='tight')
+
+    def generate_shots_graph(self, stats, tag):
+
+        # Data for the spider chart
+        labels = ["DERECHA", "SMASH", "IZQUIERDA", "VOLEA BAJA"]
+        stats = [stats['right'] / 10, stats[Category.SMASH], stats['left'] / 10, stats[Category.LOW_VOLLEY]]
+        for i in range(4):
+            labels[i] = labels[i] + " (" + str(int(10 * stats[i])) + ")"
+
+        # Number of variables we're plotting.
+        num_vars = len(labels)
+
+        # Split the circle into even parts and save the angles
+        # so we know where to put each axis.
+        angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+
+        # The plot is a circle, so we need to "complete the loop"
+        # and append the start to the end.
+        stats += stats[:1]
+        angles += angles[:1]
+
+        # Create the figure and polar subplot
+        fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+
+        # Draw the outline of our data.
+        ax.fill(angles, stats, color='#174779', alpha=0.25)
+        ax.plot(angles, stats, color='#174779', linewidth=2)
+
+        # Fill in the areas with the specified color
+        ax.fill(angles, stats, color='#7FB6FF', alpha=0.6)
+
+        # Draw one filled circle per point
+        ax.scatter(angles, stats, color='#F8FBFF', s=100)
+
+        # Fix the labels
+        ax.set_yticklabels([])
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(labels, color='#174779', size=20)
+
+        # Set the background color
+        ax.set_facecolor('#F8FBFF')
+
+        fig.savefig(self.making_path + '/shots_chart_' + tag + '.png', dpi=300, bbox_inches='tight')
 
     def get_player_images(self):
         players = self.game.get_players()
         fn = players[0].frame_number
-        frame_path = os.path.join(self.slides_dir, "frame_players.png")
+        frame_path = os.path.join(self.making_path, "frame_players.png")
         extract_frame_from_video(self.video_path, fn, frame_path)
         for tplayer in self.game.get_players():
             player = tplayer.player_object
-            player_path = os.path.join(self.slides_dir,player.tag + ".png")
+            player_path = os.path.join(self.making_path, tplayer.tag + ".png")
             crop_and_save_image(frame_path, player_path, player.x, player.y, player.height,
                                 player.width)
-            self.player_images[player.tag] = player_path
+            self.player_images[tplayer.tag] = player_path
 
 
-    def replace_image_in_slide(self, prs, image_path, old_image_index=0):
-        """
-        Replace an image in a PowerPoint slide.
-
-        Args:
-        pptx_path (str): Path to the PowerPoint file.
-        slide_index (int): Index of the slide with the image (0-based).
-        image_path (str): Path to the new image to insert.
-        old_image_index (int): Index of the image to replace within the selected slide (0-based).
-        """
-
-        # Access the specific slide
-        slide = prs.slides[0]
-
-        # Find the image shape to replace
-        image_shapes = [shape for shape in slide.shapes if shape.shape_type == 13]
-        if not image_shapes or len(image_shapes) <= old_image_index:
-            raise Exception("Image shape not found or index out of range.")
-
-        # Get the target image shape based on the index
-        old_image_shape = image_shapes[old_image_index]
-
-        # Get size and position of the old image
-        left = old_image_shape.left
-        top = old_image_shape.top
-        width = old_image_shape.width
-        height = old_image_shape.height
-
-        # Remove the old image
-        sp = old_image_shape._element
-        sp.getparent().remove(sp)
-
-        # Add the new image with the same size and position
-        slide.shapes.add_picture(image_path, left, top, width, height)
-
-
-
-    def convert_pptx_to_png(self, pptx_path, output_dir):
-        """
-        Converts a PowerPoint PPTX file to PNG images using LibreOffice.
-
-        Args:
-        pptx_path (str): The path to the PowerPoint file.
-        output_dir (str): The directory where the PNG images will be saved.
-        """
-        try:
-            # Command to convert PPTX to PNG using LibreOffice
-            cmd = [
-                'libreoffice', '--headless', '--convert-to', 'png',
-                '--outdir', output_dir, pptx_path
-            ]
-
-            # Run the command
-            subprocess.run(cmd, check=True)
-            print("Conversion successful, files saved to:", output_dir)
-        except subprocess.CalledProcessError as e:
-            print("An error occurred while converting the file:", e)
-        except Exception as e:
-            print("An error occurred:", e)
-
-    def create_video_sequence(self, image_duration=5):
-        # Define the file names of images and videos
-        files = [
-            "cover.png", "game_stats_cooked.png", "player_A_cooked.png",
-            "top3player.png", "top3_A.mp4", "player_B_cooked.png",
-            "top3player.png", "top3_B.mp4", "player_C_cooked.png",
-            "top3player.png", "top3_C.mp4", "player_D_cooked.png",
-            "top3player.png", "top3_D.mp4", "game_resume.png", "resume.mp4"
-        ]
-
-        # Prepare the list of clips
-        clips = []
-
-        # Loop through the files and create corresponding clips
-        for filename in files:
-            filepath = os.path.join(self.slides_dir, filename)
-            if filename.endswith('.png'):
-                # Create a clip from an image
-                clip = ImageClip(filepath, duration=image_duration)
-                clip = clip.set_duration(image_duration).resize(newsize=(1920, 1080))  # Resize to ensure uniformity
-                clips.append(clip)
-            elif filename.endswith('.mp4'):
-                # Load a video file clip
-                clip = VideoFileClip(filepath)
-                clips.append(clip)
-
-        # Concatenate all clips
-        final_clip = concatenate_videoclips(clips, method="compose")
-
-        # Write the result to a file
-        final_clip.write_videofile("final_output.mp4", codec="libx264", fps=60)
 
 
 def shots_to_json(shots, export=False, filename=""):
     json_shots = {}
     for i, shot in enumerate(shots):
-        json_shots[i+1] = [shot.start(), shot.end()]
+        json_shots[i + 1] = [shot.start(), shot.end()]
 
     if export:
         with open(filename, 'w') as f:
@@ -259,7 +353,7 @@ def extract_clip(input_path, start_frame, end_frame, output_path, overlay_clip_p
         '-ss', str(start_time), '-t', str(duration),  # Efficient seeking
         '-i', input_path,  # Input video
         '-i', overlay_clip_path,  # Overlay video
-        '-filter_complex', "[1:v]scale=iw/4:-1[ovrl];[0:v][ovrl]overlay=W-w-40:H-h-20:enable='lte(t,3)'",  # Scale and position overlay
+        '-filter_complex', "[1:v]scale=iw*1:ih*1[ovrl];[0:v][ovrl]overlay=W-w-40:H-h-20:enable='lte(t,3)'",        # Scale and position overlay
         '-c:v', 'libx264',  # Video codec
         '-c:a', 'aac',  # Audio codec
         output_path
@@ -274,6 +368,8 @@ def extract_clip(input_path, start_frame, end_frame, output_path, overlay_clip_p
         raise RuntimeError("FFmpeg failed with an error. See output above for more details.")
 
     print("FFmpeg process completed successfully.")
+
+
 def merge_clips(clips, output_path):
     """Merge video clips into a single video using ffmpeg."""
     with open('filelist.txt', 'w') as f:
@@ -287,7 +383,7 @@ def merge_clips(clips, output_path):
     os.remove('filelist.txt')
 
 
-def concatenate_clips_with_transition(file_names, output_filename, transition_duration=1):
+def concatenate_clips_with_transition(self, file_names, output_filename, transition_duration=1):
     # Convert transition_duration to float to avoid type issues
     transition_duration = float(transition_duration)
 
@@ -295,11 +391,10 @@ def concatenate_clips_with_transition(file_names, output_filename, transition_du
     clips_with_transitions = []
 
     # Load clips and apply fade in and fade out transitions
-    start_filename = "/home/juliofgx/PycharmProjects/PadelClips/resources/start.mp4"
+    start_filename = f"{self.resources_path}/resources/start.mp4"
     clip = VideoFileClip(start_filename)
     clip = clip.fx(vfx.fadein, transition_duration).fx(vfx.fadeout, transition_duration)
     clips_with_transitions.append(clip)
-
 
     for filename in file_names:
         clip = VideoFileClip(filename)
@@ -310,9 +405,10 @@ def concatenate_clips_with_transition(file_names, output_filename, transition_du
     final_clip = concatenate_videoclips(clips_with_transitions, method="compose")
 
     # Output file
-    final_clip.write_videofile(output_filename, codec="libx264", fps=60)
+    final_clip.write_videofile(output_filename, codec="libx264", fps=60, threads=8, progress_bar = False)
 
     return output_filename
+
 
 def merge_pairs(pairs):
     if not pairs:
@@ -334,24 +430,20 @@ def merge_pairs(pairs):
             merged_pairs.append(current_pair)
 
     return merged_pairs
-def json_points_to_video(points, input_video_path, output_video_path, from_path = None, margin=30):
 
 
-
-
-
+def json_points_to_video(points, input_video_path, output_video_path, from_path=None, margin=30):
     temp_clips = []
 
     for i in range(10, 0, -1):
         print("Extracting point " + str(i), end='\r')
         temp_clip_path = f"/home/juliofgx/PycharmProjects/PadelClips/making/temp_clip_{i}.mp4"
-        start = points[i-1][0] - margin
-        end = points[i-1][1] + margin
+        start = points[i - 1][0] - margin
+        end = points[i - 1][1] + margin
         overlay_path = f"/home/juliofgx/PycharmProjects/PadelClips/resources/points/{i}.mp4"
         if not os.path.exists(temp_clip_path):
             extract_clip(input_video_path, start, end, temp_clip_path, overlay_path)
         temp_clips.append(temp_clip_path)
-
 
     print("Merging clips...")
     concatenate_clips_with_transition(temp_clips, output_video_path)
@@ -360,4 +452,3 @@ def json_points_to_video(points, input_video_path, output_video_path, from_path 
     for clip in temp_clips:
         os.remove(clip)
         pass
-

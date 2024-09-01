@@ -1,7 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 
-from padelClipsPackage.Shot import Position, Category
+from padelClipsPackage.Shot import Position, Category, Category
 
 
 def format_seconds(seconds):
@@ -17,18 +17,19 @@ def format_time(seconds):
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 
-def frame_to_seconds(frame_number, frame_start = None, fps = 60):
+def frame_to_seconds(frame_number, frame_start=None, fps=60):
     if frame_start is not None:
         return (frame_number - frame_start) / fps
     else:
         return (frame_number) / fps
 
 
-
 class Visuals:
 
     @staticmethod
-    def plot_tracks_with_net_and_players(position_tracker, net, players_boundaries, frame_start=0, frame_end=float('inf'), fps=60):
+    def plot_tracks_with_net_and_players(position_tracker, net, players_boundaries, frame_start=0,
+                                         frame_end=float('inf'), fps=60, points=None, highlight='cat'):
+        #highlight values: shots, cat
         matplotlib.use('TkAgg')  # Use the appropriate backend
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 10), sharex=True)
 
@@ -54,10 +55,36 @@ class Visuals:
                 ax1.plot(seconds, y_positions, marker='o',
                          label=f'Track from frame {track.pifs[0].frame_number}', color='green')
 
-        colors = {'A':'red', 'B':'pink', 'C':'blue', 'D':'black'}
-        #for point in position_tracker.points:
-        #    for shot in point.shots:
-        #            ax1.plot(frame_to_seconds(shot.hit.frame_number), 1-shot.hit.y, marker='o', color=colors[shot.hit_player])
+        colors = {'A': 'red', 'B': 'pink', 'C': 'blue', 'D': 'black'}
+        if points is not None:
+            for point in position_tracker.points:
+                for shot in point.shots:
+
+                    sf = [pif.frame_number for pif in shot.pifs if frame_start <= pif.frame_number <= frame_end]
+                    sf = [frame_to_seconds(fn) for fn in sf]
+                    sy = [1 - pif.y for pif in shot.pifs if frame_start <= pif.frame_number <= frame_end]
+                    if highlight == 'cat':
+                        if len(sy) > 0 and shot.category is not Category.NONE:
+                            if shot.category is Category.SMASH:
+                                color = 'yellow'
+                            elif shot.category is Category.START_GLOBE:
+                                color = 'blue'
+                            elif shot.category is Category.END_GLOBE or shot.category is Category.FULL_GLOBE:
+                                color = 'cyan'
+
+                            elif shot.category is Category.SERVE:
+                                color = 'black'
+                            ax1.plot(sf, sy, marker='x',
+                                     label=f'Shot from frame {shot.pifs[0].frame_number}', color=color)
+                    elif highlight == 'shots':
+                        color = list(colors.values())[point.shots.index(shot) % len(colors.values())]
+                        ax1.plot(sf, sy, marker='x',
+                                 label=f'Shot from frame {shot.pifs[0].frame_number}', color=color)
+                    if len(sy) > 0 and shot.striker is not None:
+                        color = colors[shot.striker.tag]
+                        ax1.plot(frame_to_seconds(shot.striker_pif.frame_number), 1 - shot.striker_pif.y,
+                                 marker='*', color=color, markersize=20)
+
 
 
 
@@ -73,14 +100,13 @@ class Visuals:
         ax1.axhline(y=(1 - net.y) + net.height / 2, color='blue', label='Net (Sup)')
         ax1.axhline(y=(1 - net.y) - net.height / 2, color='blue', label='Net (Inf)')
 
-        ax1.axhline(y=1-players_boundaries[Position.TOP], color='yellow', label='PB (Sup)')
-        ax1.axhline(y=1-players_boundaries[Position.BOTTOM] , color='yellow', label='PB (Inf)')
-
+        ax1.axhline(y=1 - players_boundaries[Position.TOP], color='yellow', label='PB (Sup)')
+        ax1.axhline(y=1 - players_boundaries[Position.BOTTOM], color='yellow', label='PB (Inf)')
 
         ax1.set_xlabel('Time (hh:mm:ss)')
         ax1.set_ylabel('Y Position')
         ax1.set_title('Ball and Player Y Positions Over Time')
-        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
+        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x + start)))
         ax1.grid(True)
 
         # Plot X positions of ball and players on ax2
@@ -101,11 +127,11 @@ class Visuals:
         ax2.plot([frame_to_seconds(fn) for fn in fn_c], player_c, marker='x', label='Player C', color='blue')
         ax2.plot([frame_to_seconds(fn) for fn in fn_d], player_d, marker='x', label='Player D', color='black')
 
-
         ax2.set_xlabel('Time (hh:mm:ss)')
         ax2.set_ylabel('X Position')
         ax2.set_title('Ball and Player X Positions Over Time')
-        ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
+        start = frame_to_seconds(frame_start)
+        ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x + start)))
         ax2.grid(True)
 
         plt.legend()
@@ -144,7 +170,6 @@ class Visuals:
         for i, (key, values) in enumerate(data.items()):
             x = list(range(len(values)))  # X-axis values (position of each item)
             plt.plot(x, values, marker='o', color=colors[i], label=key)
-
 
         ax.grid(True)
 
@@ -187,7 +212,7 @@ class Visuals:
                 y_pos_val += [1 - pif.y for pif in track.pifs]
             #seconds = [frame_to_seconds(fn, 0) for fn in y_pos_frn]
         ax.plot(y_pos_frn, y_pos_val, marker='o',
-                    label=f'All tracks', color='red')
+                label=f'All tracks', color='red')
 
         ax.axhline(y=(1 - net.y) + net.height / 2, color='blue', label='Net (Sup)')
         ax.axhline(y=(1 - net.y) - net.height / 2, color='blue', label='Net (Inf)')
@@ -220,10 +245,7 @@ class Visuals:
                             h_sec, h_val = zip(*highlight_track)
                             ax.plot(h_sec, h_val, marker='o', color='blue')
 
-
-
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(frame_to_seconds(x,0,fps))))
-
+        #ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(frame_to_seconds(x,start,fps))))
 
         plt.legend()
         plt.tight_layout()
@@ -313,10 +335,6 @@ class Visuals:
         ax.legend()
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
 
-
-
-
-
     def plot_y_positions(self, ax, tracks, frame_start, frame_end, fps, show_players, net):
         colors = ['green', 'brown', 'red', 'blue', 'black']
         for i, track in enumerate(tracks):
@@ -325,7 +343,7 @@ class Visuals:
             if frame_numbers:
                 seconds = [frame_to_seconds(fn, None, fps) for fn in frame_numbers]
                 ax.plot(seconds, y_positions, marker='o',
-                         label=f'Track {track.tag}', color=colors[i%5])
+                        label=f'Track {track.tag}', color=colors[i % 5])
 
         if show_players:
             self.plot_players(ax, 'y', frame_start, frame_end)
@@ -365,7 +383,8 @@ class Visuals:
         colors = ['red', 'yellow', 'blue', 'black']
         for player, color in zip(players, colors):
             player_pos, frame_nums = self.get_player_position_over_time(player, axis, frame_start, frame_end)
-            ax.plot([frame_to_seconds(fn, frame_start) for fn in frame_nums], player_pos, marker='x', label=f'Player {player}', color=color)
+            ax.plot([frame_to_seconds(fn, frame_start) for fn in frame_nums], player_pos, marker='x',
+                    label=f'Player {player}', color=color)
 
     def plot_track_coverage(self, ax):
         colors = [

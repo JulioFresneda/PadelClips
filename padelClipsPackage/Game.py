@@ -8,10 +8,13 @@ from padelClipsPackage.Object import PlayerTemplate
 from padelClipsPackage.Point import Point
 
 from padelClipsPackage.PositionTracker import PositionTrackerV2
-from padelClipsPackage.Shot import Position, ShotV2
+from padelClipsPackage.Shot import Position, Shot
 from padelClipsPackage.Visuals import Visuals
 import rust_functions
 
+
+# TODO
+#
 
 class Game:
     def __init__(self, frames, fps, player_features, start=0, end=None):
@@ -19,43 +22,43 @@ class Game:
         self.start = start
         self.end = len(frames) if end is None else end
 
-
-
         self.net = None
-        self.players_boundaries = None
+        self.players_boundaries_vertical = None
+        self.players_boundaries_horizontal = None
         self.fps = int(fps)
 
         self.frames_controller = FramesController(frames[start:end])
-
 
         self.load_player_info(player_features)
         self.set_net()
 
         Point.game = self
-        ShotV2.game = self
+        Shot.game = self
         self.track_ball_v2()
-        #Visuals.plot_points(self.tracks, self.points, self.net, self.fps )
+        #Visuals.plot_tracks_with_net_and_players(self.position_tracker, self.net, self.players_boundaries, frame_start=30420, frame_end=31200, points=self.points)
 
         print("Points loaded.")
 
-        self.gameStats = GameStats(self.frames_controller, self.points, self.net)
+
+
+        self.gameStats = GameStats(self)
         self.gameStats.print_game_stats()
 
     def load_hyperparameters(self, hyperparameters):
         self.default_hyperparameters = {
-            'static_ball_min_frames':120,
-            'static_ball_min_diff_allowed':0.005,
-            'max_bottom_mountains':2,
-            'max_top_mountains':4,
-            'max_height_top_mountains':0.1,
-            'jumps_min_frames':120,
-            'jumps_max_allowed':0.4,
-            'jumps_max_num':2,
-            'slow_balls_min_frames':60,
-            'slow_balls_min_velocity':8,
-            'disc_min_frames':120,
-            'disc_frames_disc':20,
-            'disc_min_occurrences':3
+            'static_ball_min_frames': 120,
+            'static_ball_min_diff_allowed': 0.005,
+            'max_bottom_mountains': 2,
+            'max_top_mountains': 4,
+            'max_height_top_mountains': 0.1,
+            'jumps_min_frames': 120,
+            'jumps_max_allowed': 0.4,
+            'jumps_max_num': 2,
+            'slow_balls_min_frames': 60,
+            'slow_balls_min_velocity': 8,
+            'disc_min_frames': 120,
+            'disc_frames_disc': 20,
+            'disc_min_occurrences': 3
         }
 
         if hyperparameters is None:
@@ -66,6 +69,7 @@ class Game:
                 if default not in self.hyperparameters.keys():
                     self.hyperparameters[default] = self.default_hyperparameters[default]
         print(f"Evaluated config: {self.hyperparameters}")
+
     def load_player_info(self, player_features):
         self.player_features = player_features
         self.players = self.set_player_templates()
@@ -81,38 +85,50 @@ class Game:
     def load_players_boundaries(self):
         max_y = -1
         min_y = 1
+
+        max_x_top = -1
+        min_x_top = 1
+        max_x_bottom = -1
+        min_x_bottom = 1
+
         for frame in self.frames_controller.frame_list:
 
-
-            players_ordered = sorted(frame.players(), key=lambda obj: obj.y+obj.height/2)
+            players_ordered = sorted(frame.players(), key=lambda obj: obj.y + obj.height / 2)
             for i, player in enumerate(players_ordered):
                 if len(frame.players()) == 4:
-                    if i<2:
+                    if i < 2:
                         player.position = Position.TOP
                     else:
                         player.position = Position.BOTTOM
                 else:
-                    if player.y + player.height/2 > self.net.y + self.net.height/2:
+                    if player.y + player.height / 2 > self.net.y + self.net.height / 2:
                         player.position = Position.BOTTOM
                     else:
                         player.position = Position.TOP
 
-
             for player in frame.players():
-                if player.y - player.height/2 < min_y and player.position == Position.TOP:
-                    min_y = player.y - player.height/2
-                if player.y + player.height/2 > max_y and player.position == Position.BOTTOM:
-                    max_y = player.y + player.height/2
+                if player.position == Position.TOP:
+                    if player.y - player.height / 2 < min_y:
+                        min_y = player.y - player.height / 2
+                    if player.x - player.width / 2 < min_x_top:
+                        min_x_top = player.x - player.width / 2
+                    if player.x + player.width / 2 > max_x_top:
+                        max_x_top = player.x + player.width / 2
 
-        self.players_boundaries = {Position.TOP: min_y, Position.BOTTOM: max_y}
+                if player.position == Position.BOTTOM:
+                    if player.y + player.height / 2 > max_y:
+                        max_y = player.y + player.height / 2
+                    if player.x - player.width / 2 < min_x_bottom:
+                        min_x_bottom = player.x - player.width / 2
+                    if player.x + player.width / 2 > max_x_bottom:
+                        max_x_bottom = player.x + player.width / 2
 
+        self.players_boundaries_vertical = {Position.TOP: min_y, Position.BOTTOM: max_y}
+        self.players_boundaries_horizontal = {Position.TOP: {'left': min_x_top, 'right': max_x_top},
+                                              Position.BOTTOM: {'left': min_x_bottom, 'right': max_x_bottom}}
 
     def get_players(self):
         return self.players.copy()
-
-
-
-
 
     def set_net(self):
         best_net_frame = self.frames_controller.template_net
@@ -125,11 +141,10 @@ class Game:
         return f"Game({str(len(self.frames_controller))})"
 
     def track_ball_v2(self):
-        self.position_tracker = PositionTrackerV2(self.frames_controller, self.fps, self.net, self.players_boundaries)
+        self.position_tracker = PositionTrackerV2(self.frames_controller, self.fps, self.net,
+                                                  self.players_boundaries_vertical)
         self.points = self.position_tracker.points
         self.tracks = self.position_tracker.tracks
-
-
 
     def set_player_templates(self):
         frame_template = self.frames_controller.get_template_players()

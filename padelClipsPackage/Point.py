@@ -3,7 +3,7 @@ from enum import Enum
 from padelClipsPackage import Track
 import math
 
-from padelClipsPackage.Shot import Shot, Position, ShotV2, CategoryV2
+from padelClipsPackage.Shot import Shot, Position, Shot, Category
 from padelClipsPackage.aux import apply_kalman_filter, apply_kalman_filter_pifs
 
 
@@ -16,11 +16,94 @@ class Point:
             self.shots = []
 
             self.cook_shots_v2()
+            self.join_shots_same_striker_and_receiver()
+            self.improve_striker_recognition()
+            self.join_globes()
 
         else:
             self.track = Track.Track()
             self.shots = []
 
+
+    def join_globes(self):
+        new_shots = self.shots.copy()
+        for i in range(len(self.shots) - 1):
+            if self.shots[i].category is Category.START_GLOBE and self.shots[i + 1].category is Category.END_GLOBE:
+                new_shots.append(Shot.join_globes(self.shots[i], self.shots[i+1]))
+                new_shots.remove(self.shots[i])
+                new_shots.remove(self.shots[i+1])
+
+        self.shots = sorted(new_shots, key=lambda s: s.start())
+
+
+    def improve_striker_recognition(self):
+
+        # In serve, last inflexion under net
+        for shot in self.shots:
+            if shot.category is Category.SERVE:
+                for inf in reversed(shot.inflexions):
+                    if inf.y > Shot.game.net.y + Shot.game.net.height / 2:
+                        shot.striker_pif = inf
+                        break
+
+        # If three consecutive TOP/BOTTOMs, the middle one is different
+        for i in range(1, len(self.shots)-1):
+            left = self.shots[i-1]
+            middle = self.shots[i]
+            right = self.shots[i+1]
+            changed = None
+
+            is_not_changed = (left != changed and middle != changed and right != changed)
+            is_not_none = left.striker is not None and right.striker is not None and middle.striker is not None
+
+            if is_not_none:
+                same_pos = left.striker.position == right.striker.position == middle.striker.position
+
+                if is_not_changed and same_pos:
+                    middle.update_striker_with_conf_v2(conf=0.15)
+                    changed = middle
+
+
+        new_shots = self.shots.copy()
+        for i in range(1, len(self.shots) - 1):
+            if self.shots[i].striker is not None and self.shots[i + 1].striker is not None:
+                if self.shots[i].striker.tag == self.shots[i + 1].striker.tag:
+                    new_shots.append(Shot.join_shots([self.shots[i - 1], self.shots[i]]))
+                    new_shots.remove(self.shots[i - 1])
+                    new_shots.remove(self.shots[i])
+
+        self.shots = sorted(new_shots, key=lambda s: s.start())
+
+
+
+
+
+
+    def join_shots_same_striker_and_receiver(self):
+        grouped_objects = []
+        current_group = []
+
+        for shot in self.shots:
+            if not current_group:
+                # Start a new group with the first object
+                current_group.append(shot)
+            elif shot.striker is not None and current_group[-1].striker is not None and shot.striker.tag == current_group[-1].striker.tag and shot.category is Category.NONE:
+                current_group.append(shot)
+            else:
+                # Finish the current group and start a new one
+                grouped_objects.append(current_group)
+                current_group = [shot]
+
+        # Don't forget to add the last group
+        if current_group:
+            grouped_objects.append(current_group)
+
+        new_shots = []
+        for group in grouped_objects:
+            new_shots.append(Shot.join_shots(group))
+
+
+        self.shots = new_shots
 
 
     def cook_shots_v2(self, min_length=5):
@@ -34,11 +117,11 @@ class Point:
         self.shots = []
         for shot in shots:
             if shot[-1].frame_number - shot[0].frame_number >= min_length:
-                new_shot = ShotV2(shot)
+                new_shot = Shot(shot)
                 self.shots.append(new_shot)
         if len(self.shots) > 0:
-            if self.shots[0].category is CategoryV2.NONE:
-                self.shots[0].category = CategoryV2.SERVE
+            if self.shots[0].category is Category.NONE:
+                self.shots[0].category = Category.SERVE
 
 
     def merge_shots(self, shots):
@@ -232,7 +315,7 @@ class Point:
             last_local_min = Shot.find_last_local_minimum(shots_top_mountains[1])
             i = shots_top_mountains[1].index(last_local_min)
 
-            while i > 0 and shots_top_mountains[1][i].y < self.game.players_boundaries[Position.TOP]:
+            while i > 0 and shots_top_mountains[1][i].y < self.game.players_boundaries_vertical[Position.TOP]:
                 i -= 1
 
             self.shots.append(Shot(shots_top_mountains[1], position=Position.TOP, hit=shots_top_mountains[1][i]))
@@ -260,7 +343,7 @@ class Point:
                         last_local_min = Shot.find_last_local_minimum(shots_top_mountains[count])
                         i = shots_top_mountains[count].index(last_local_min)
 
-                        while i > 0 and shots_top_mountains[count][i].y < self.game.players_boundaries[Position.TOP]:
+                        while i > 0 and shots_top_mountains[count][i].y < self.game.players_boundaries_vertical[Position.TOP]:
                             i -= 1
 
                         self.shots.append(
@@ -272,7 +355,7 @@ class Point:
                         last_local_max = Shot.find_last_local_maximum(shots_top_mountains[count])
                         i = shots_top_mountains[count].index(last_local_max)
 
-                        while i > 0 and shots_top_mountains[count][i].y < self.game.players_boundaries[Position.TOP]:
+                        while i > 0 and shots_top_mountains[count][i].y < self.game.players_boundaries_vertical[Position.TOP]:
                             i -= 1
 
                         self.shots.append(
