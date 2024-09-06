@@ -26,6 +26,45 @@ def frame_to_seconds(frame_number, frame_start=None, fps=60):
 
 class Visuals:
 
+
+    @staticmethod
+    def plot_player_positions(positions, index):
+        matplotlib.use('TkAgg')
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+        # Loop over each category in the data
+        for key in positions:
+            x_values, y_values = zip(*positions[key])
+            time = index[key]
+            time = [frame_to_seconds(t) for t in time]
+
+            # Plot the x positions on the first subplot
+            ax1.plot(time, x_values, label=f'{key} x', linestyle='-', marker='o')
+
+            # Plot the y positions on the second subplot
+            ax2.plot(time, y_values, label=f'{key} y', linestyle='--', marker='o')
+
+        # Add titles and labels for the first subplot
+        ax1.set_title('X Positions vs Time')
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('X Position')
+        ax1.legend()
+
+        # Add titles and labels for the second subplot
+        ax2.set_title('Y Positions vs Time')
+        ax2.set_xlabel('Time (s)')
+        ax2.set_ylabel('Y Position')
+        ax2.legend()
+
+        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
+        ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: format_seconds(x)))
+
+        # Adjust layout to prevent overlap
+        plt.tight_layout()
+
+        # Display the plot
+        plt.show()
+
     @staticmethod
     def plot_tracks_with_net_and_players(position_tracker, net, players_boundaries, frame_start=0,
                                          frame_end=float('inf'), fps=60, points=None, highlight='cat'):
@@ -74,6 +113,8 @@ class Visuals:
 
                             elif shot.category is Category.SERVE:
                                 color = 'black'
+                            else:
+                                color = 'orange'
                             ax1.plot(sf, sy, marker='x',
                                      label=f'Shot from frame {shot.pifs[0].frame_number}', color=color)
                     elif highlight == 'shots':

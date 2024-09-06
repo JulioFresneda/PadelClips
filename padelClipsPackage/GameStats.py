@@ -13,6 +13,31 @@ class GameStats:
         self.net = game.net
         self.game = game
 
+        self.medals = {
+            "Nube": self.nube(),
+            "Trueno": self.trueno(),
+            "Destello": self.destello(),
+            "Bastion": self.bastion(),
+            "Vanguardia": self.vanguardia(),
+            "Nevera": self.nevera(),
+            "Iman": self.iman(),
+            "Obsesivo": self.obsesivo(),
+            "Pulpo": self.pulpo(),
+            "Hipopotamo": self.hipopotamo()
+        }
+        self.medals_descriptions = {
+            "Nube": ["Jugador más globero.", "{{ result }} globos registrados.", "Un {{ result }} más que el segundo."],
+            "Trueno": ["Jugador con más smashes.", "{{ result }} smashes registrados.", "Un {{ result }} más que el segundo."],
+            "Destello": ["Smash más veloz del partido.", "Una velocidad de {{ result }} m/s.", "Un {{ result }} más que la media."],
+            "Bastion": ["Jugador con más tiempo en fondo de pista.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
+            "Vanguardia": ["Jugador con más tiempo en red.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
+            "Nevera": ["Jugador que menos bolas ha recibido.", "{{ result }} de bolas registradas.", "Un {{ result }} menos que el segundo."],
+            "Iman": ["Jugador que más bolas ha recibido.", "{{ result }} de bolas registradas.", "Un {{ result }} más que el segundo."],
+            "Obsesivo": ["Jugador que más bolas ha lanzado a un mismo rival.", "{{ result }} de bolas registradas hacia {{ result2 }}.", "Un {{ result }} más que a su compañero."],
+            "Pulpo": ["Jugador con mayor equilibrio en derecha y revés.", "{{ result }} de derechas.", "Un {{ result }} menos que el segundo."],
+            "Hipopotamo": ["Jugador más territorial.", "{{ result }} de campo abarcado.", "Un {{ result }} más que su compañero."]
+        }
+
     #########################################################
     # WELCOME TO THE AWESOME GAME AWARDS AND GAME STATS!
     #
@@ -40,6 +65,16 @@ class GameStats:
     #   -   Trofeo de agilidad     - Pareja con mas metros corridos
     #   -   Trofeo de polivalencia - Pareja donde los jugadores cambian mas de posicion
     #
+
+
+    def get_medals(self, tag):
+        medals = {}
+        for name, winner in self.medals.items():
+            if winner[0] == tag:
+                medals[name] = winner[1]
+
+        return medals
+
 
     def print_game_stats(self):
         print("------- WELCOME TO THE AWESOME GAME AWARDS AND GAME STATS! -------")
@@ -92,7 +127,7 @@ class GameStats:
 
     def hipopotamo(self):
         positions = {}
-        for player in self.game.players:
+        for player in self.game.player_templates:
             positions[player.tag] = []
         for frame in self.game.frames_controller.frame_list:
             for player in frame.players():
@@ -109,7 +144,7 @@ class GameStats:
 
     def pulpo(self):
         players_ordered = []
-        for player in self.game.players:
+        for player in self.game.player_templates:
             r, l = self.rights_and_backhands(player.tag)
             players_ordered.append((player.tag, abs(l - r)))
         return sorted(players_ordered, key=lambda p: p[1])[0]
@@ -136,7 +171,8 @@ class GameStats:
         for players, shots in striker_receiver.items():
             count_shots_by_player.append((players, shots))
         count_shots_by_player = sorted(count_shots_by_player, key=lambda x: x[1], reverse=True)
-        return count_shots_by_player[0]
+        winner = count_shots_by_player[0]
+        return (winner[0][0], (winner[0][1], winner[1]))
 
     def bastion(self):
         distances = self.player_distances_to_the_net()
@@ -163,7 +199,7 @@ class GameStats:
                 if fastest_vel > vel:
                     fastest_shot = shot
                     fastest_vel = vel
-        return fastest_shot, fastest_vel
+        return (shot.striker.tag, (fastest_shot, fastest_vel))
 
     def get_player_most_shots(self, category=None):
         shots = self.get_shots()
@@ -182,7 +218,7 @@ class GameStats:
 
     def categorize_player_shots(self):
         categories = {}
-        for player in self.game.players:
+        for player in self.game.player_templates:
             r, l = self.rights_and_backhands(player.tag)
             categories[player.tag] = {Category.SMASH: 0, Category.LOW_VOLLEY: 0, 'left': l, 'right': r}
 
@@ -232,7 +268,7 @@ class GameStats:
 
     def overall_meters_ran(self, point=None):
         meters = 0
-        for p in Point.game.players:
+        for p in Point.game.player_templates:
             meters += self.meters_ran(p.tag, point)
         return meters
 
@@ -279,7 +315,7 @@ class GameStats:
         return rights, backhands
 
     def player_that_ran_the_most(self):
-        top = sorted(Point.game.players, key=lambda player: self.meters_ran(player.tag), reverse=True)[:1]
+        top = sorted(Point.game.player_templates, key=lambda player: self.meters_ran(player.tag), reverse=True)[:1]
         return top[0]
 
     def total_shots(self):
@@ -290,7 +326,7 @@ class GameStats:
 
     def player_shot_number(self, player_tag=None):
         shots = {}
-        for player in Point.game.players:
+        for player in Point.game.player_templates:
             shots[player.tag] = 0
 
         for point in self.points:
@@ -312,7 +348,7 @@ class GameStats:
 
     def player_distances_to_the_net(self):
         distances = {}
-        for player in self.game.players:
+        for player in self.game.player_templates:
             distances[player.tag] = self.average_player_distance_to_the_net(player.tag)
         return sorted(distances.items(), key=lambda item: item[1])
 

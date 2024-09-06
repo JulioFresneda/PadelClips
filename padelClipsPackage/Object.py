@@ -30,6 +30,8 @@ class Object:
         self.tag = tag
 
 
+    def get_foot(self):
+        return self.y + self.height/2
 
     def set_tag(self, tag):
         self.tag = tag
@@ -44,12 +46,25 @@ class Object:
         return (self.x, self.y, self.width, self.height)
 
 
+class Net(Object):
+    def __init__(self, class_label, x_center, y_center, width, height, conf, tag=None):
+        # Initialize the base class (Object)
+        super().__init__(class_label, x_center, y_center, width, height, conf)
 
+    def get_position(self):
+        return self.y + self.height/2
+
+    def __str__(self):
+        print("Net")
+
+    def __repr__(self):  # This makes it easier to see the result when printing the list
+        return f"Net"
 
 class Player(Object):
     def __init__(self, class_label, x_center, y_center, width, height, conf, tag=None):
         # Initialize the base class (Object)
         self.position = None
+        self.new_tag = None
         super().__init__(class_label, x_center, y_center, width, height, conf, tag)
 
 
@@ -60,8 +75,13 @@ class Player(Object):
     def __repr__(self):  # This makes it easier to see the result when printing the list
         return f"Player({self.tag})"
 
+    def __copy__(self):
+        np = Player(self.class_label, self.x, self.y, self.width, self.height, self.conf, self.tag)
+        np.position = self.position
+        return np
 
-
+    def copy(self):
+        return self.__copy__()
 
 
 
@@ -73,6 +93,7 @@ class PlayerTemplate:
         self.template_features = template_features
         self.frame_number = frame_number
         self.player_object = object
+        self.position = self.player_object.position
 
 
     def __str__(self):

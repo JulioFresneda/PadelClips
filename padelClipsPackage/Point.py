@@ -288,7 +288,7 @@ class Point:
             self.top_mountains_to_shots(mountains)
 
         for shot in self.shots:
-            shot.tag_hit_player(self.game.frames_controller.get(shot.hit.frame_number).players())
+            shot.tag_hit_player(self.game.frames_controller.get(shot.hit.frame_number).player_templates())
 
         self.shots = sorted(self.shots, key=lambda shot: shot.hit.frame_number)
         shots_clean = self.shots

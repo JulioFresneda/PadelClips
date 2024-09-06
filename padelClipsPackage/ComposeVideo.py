@@ -47,24 +47,24 @@ class ComposeVideo:
 
         self.get_player_images()
         self.generate_graphs()
-
-        for player in self.game.players:
+        medals = {}
+        for player in self.game.player_templates:
             input_file = self.resources_path + '/player_1.html'
-            self.generate_html(player, input_file)
-
+            self.generate_html_player_stats(player, input_file)
             input_file = self.resources_path + '/player_2.html'
-            self.generate_html(player, input_file)
+            self.generate_html_player_stats(player, input_file)
+            medals[player.tag] = self.generate_html_medals(player)
 
-        self.compose_video()
+        self.compose_video(medals)
 
 
-    def compose_video(self):
+    def compose_video(self, medals):
         points = self.game.gameStats.top_x_longest_points(10)
-        self.make_clips(points, margin=60)
+        self.make_clips(points, medals, margin=60)
 
 
 
-    def make_clips(self, points, margin):
+    def make_clips(self, points, medals, margin):
 
         temp_clips = []
 
@@ -81,9 +81,11 @@ class ComposeVideo:
         print("Merging clips...")
 
         image_filenames = []
-        for player in self.game.players:
+        for player in self.game.player_templates:
             image_filenames.append(f"{self.making_path}/player_1_{player.tag}.png")
             image_filenames.append(f"{self.making_path}/player_2_{player.tag}.png")
+            for medal in medals[player.tag]:
+                image_filenames.append(medal)
 
         self.concatenate_clips_with_transition(temp_clips, self.output_path, image_filenames)
 
@@ -125,8 +127,41 @@ class ComposeVideo:
 
         return output_filename
 
-    def generate_html(self, player, input_file):
-         # Replace with your actual file path
+
+    def generate_html_medals(self, player):
+        filepaths = []
+        medals = self.game.gameStats.get_medals(player.tag)
+        input_file = self.resources_path + '/medals.html'
+        for medal, result in medals.items():
+            html_content = self.generate_html_common(player, input_file)
+            html_content = html_content.replace('medals/bastion.png', f"../resources/medals/{medal.lower()}.png")
+
+            titles = self.game.gameStats.medals_descriptions[medal]
+            title = titles[0].replace("{{ result }}", str(result))
+            subtitle = titles[1]
+            html_content = html_content.replace('{{ title }}', title)
+            html_content = html_content.replace('{{ subtitle }}', subtitle)
+
+            output_file = self.making_path + f'/medal_{player.tag}_{medal.lower()}.html'  # Replace with your desired output file path
+
+            with open(output_file, 'w', encoding='utf-8') as file:
+                file.write(html_content)
+
+            png_output = self.making_path + f'/medal_{player.tag}_{medal.lower()}.png'
+            filepaths.append(png_output)
+            self.html_to_png(output_file, png_output)
+        return filepaths
+
+
+
+    def generate_html_player_stats(self, player, input_file):
+        html_content = self.generate_html_common(player, input_file)
+        if '1.html' in input_file:
+            self.generate_html_1(html_content, player)
+        else:
+            self.generate_html_2(html_content, player)
+
+    def generate_html_common(self, player, input_file):
 
         with open(input_file, 'r', encoding='utf-8') as file:
             html_content = file.read()
@@ -143,15 +178,13 @@ class ComposeVideo:
         position = "Abajo" if player.player_object.position is Position.BOTTOM else "Arriba"
         html_content = html_content.replace('{{ position }}', position)
         teammate = None
-        for p in self.game.players:
+        for p in self.game.player_templates:
          if p.tag != player.tag and p.player_object.position is player.player_object.position:
              teammate = p.tag
         html_content = html_content.replace('{{ tag_teammate }}', teammate)
+        return html_content
 
-        if '1.html' in input_file:
-            self.generate_html_1(html_content, player)
-        else:
-            self.generate_html_2(html_content, player)
+
 
     def generate_html_2(self, html_content, player):
         html_content = html_content.replace('{{ mrun }}', str(int(self.game.gameStats.meters_ran(player.tag))) + ' metros')
@@ -207,7 +240,7 @@ class ComposeVideo:
             print(f"An error occurred while converting HTML to PNG: {e}")
 
     def generate_graphs(self):
-        for player in self.game.players:
+        for player in self.game.player_templates:
             stats = self.gameStats.categorize_player_shots()
             self.generate_shots_graph(stats[player.tag], player.tag)
 
@@ -219,6 +252,7 @@ class ComposeVideo:
 
         up = self.game.players_boundaries_vertical[Position.TOP]
         bottom = self.game.players_boundaries_vertical[Position.BOTTOM]
+        net = self.game.net.y + self.game.net.height/2
         left = self.game.players_boundaries_horizontal[player_position]['left']
         right = self.game.players_boundaries_horizontal[player_position]['right']
 
@@ -228,7 +262,7 @@ class ComposeVideo:
         scaled = []
         for pos in pos_data:
             x = scale_position(pos[0], left, right)
-            y = scale_position(2 * (1 - pos[1]), up, bottom)
+            y = abs(1-scale_position(pos[1], up, bottom))
             scaled.append((x, y))
         return scaled
 
@@ -370,17 +404,6 @@ def extract_clip(input_path, start_frame, end_frame, output_path, overlay_clip_p
     print("FFmpeg process completed successfully.")
 
 
-def merge_clips(clips, output_path):
-    """Merge video clips into a single video using ffmpeg."""
-    with open('filelist.txt', 'w') as f:
-        for clip in clips:
-            f.write(f"file '{clip}'\n")
-    command = [
-        'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
-        '-i', 'filelist.txt', '-c:v', 'libx264', '-c:a', 'aac', output_path
-    ]
-    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    os.remove('filelist.txt')
 
 
 def concatenate_clips_with_transition(self, file_names, output_filename, transition_duration=1):
@@ -410,26 +433,6 @@ def concatenate_clips_with_transition(self, file_names, output_filename, transit
     return output_filename
 
 
-def merge_pairs(pairs):
-    if not pairs:
-        return []
-
-    # Start with the first pair
-    merged_pairs = [pairs[0]]
-
-    for i in range(1, len(pairs)):
-        last_merged_pair = merged_pairs[-1]
-        current_pair = pairs[i]
-
-        # If the end of the last merged pair overlaps with or touches the start of the current pair
-        if last_merged_pair[1] >= current_pair[0]:
-            # Merge the two pairs
-            merged_pairs[-1] = (last_merged_pair[0], max(last_merged_pair[1], current_pair[1]))
-        else:
-            # Otherwise, add the current pair to the result as it is
-            merged_pairs.append(current_pair)
-
-    return merged_pairs
 
 
 def json_points_to_video(points, input_video_path, output_video_path, from_path=None, margin=30):

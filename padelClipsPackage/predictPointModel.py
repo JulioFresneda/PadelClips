@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from scipy.ndimage import uniform_filter1d
 
 class PredictPointModel:
-    model_path = '/home/juliofgx/PycharmProjects/PadelClips/model.keras'
+    model_path = '/home/juliofgx/PycharmProjects/PadelClips/model_set1.keras'
     def __init__(self, tracks=None, true_labels=None):
         self.true_labels = true_labels
         self.pifs = []
@@ -167,7 +167,7 @@ class PredictPointModel:
         X = np.array(X)
         y = np.array(y)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
         model = Sequential()
         model.add(LSTM(100, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
         model.add(Dropout(0.2))
@@ -179,13 +179,13 @@ class PredictPointModel:
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
         # Train the model
-        model.fit(X_train, y_train, epochs=30, batch_size=128, validation_split=0.2)
+        model.fit(X_train, y_train, epochs=30, batch_size=128, validation_split=0.4)
 
         # Evaluate the model
         loss, accuracy = model.evaluate(X_test, y_test)
         print(f"Test Accuracy: {accuracy:.2f}")
 
-        model.save('/home/juliofgx/PycharmProjects/PadelClips/model.keras')
+        model.save('/home/juliofgx/PycharmProjects/PadelClips/model_set1.keras')
 
         # Make predictions on the test set
         predictions = model.predict(X_test)
@@ -307,4 +307,4 @@ class PredictPointModel:
 
 
 
-#PredictPointModel.learn()
+#PredictPointModel.learn('/home/juliofgx/PycharmProjects/PadelClips/padelClipsTraining/predict/1set_ft.xlsx')

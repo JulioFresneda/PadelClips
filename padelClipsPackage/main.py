@@ -10,10 +10,10 @@ import numpy as np
 
 from padelClipsPackage.ComposeVideo import points_to_json, json_points_to_video, ComposeVideo
 
-ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/ball_inference.xlsx"
-players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/players_inference.xlsx"
-players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/players_inference_features.npz"
-video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/2set/2set_fixed.mp4"
+ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set/ball_inference.xlsx"
+players_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set/players_inference.xlsx"
+players_ft_npz = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set/players_inference_features.npz"
+video_path = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set/1set_fixed.mp4"
 making_path = "/home/juliofgx/PycharmProjects/PadelClips/making"
 resources_path = "/home/juliofgx/PycharmProjects/PadelClips/resources"
 #start = 23700

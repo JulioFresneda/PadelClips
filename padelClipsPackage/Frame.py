@@ -3,7 +3,7 @@ import math
 from enum import Enum
 import os, re
 
-from padelClipsPackage.Object import Object, Player, Label
+from padelClipsPackage.Object import Object, Player, Label, Net
 from padelClipsPackage.aux import *
 import pandas as pd
 from collections import defaultdict
@@ -86,9 +86,14 @@ class Frame:
                 Object(mapping['ball'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'], tag=tag))
 
         for _, row in df_players.iterrows():
-            frame_info[int(row['frame'])].append(
-                Player(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'],
-                       tag=str(int(row['id']))))
+            if mapping['players'][row['class']] is Label.NET:
+                frame_info[int(row['frame'])].append(
+                    Net(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf']))
+            else:
+                if row['conf'] >= 0.7:
+                    frame_info[int(row['frame'])].append(
+                        Player(mapping['players'][row['class']].value, row['x'], row['y'], row['w'], row['h'], row['conf'],
+                               tag=str(int(row['id']))))
 
 
         frame_info = Frame.remove_static_balls(frame_info)
