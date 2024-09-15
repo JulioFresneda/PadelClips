@@ -26,16 +26,16 @@ class GameStats:
             "Hipopotamo": self.hipopotamo()
         }
         self.medals_descriptions = {
-            "Nube": ["Jugador más globero.", "{{ result }} globos registrados.", "Un {{ result }} más que el segundo."],
-            "Trueno": ["Jugador con más smashes.", "{{ result }} smashes registrados.", "Un {{ result }} más que el segundo."],
-            "Destello": ["Smash más veloz del partido.", "Una velocidad de {{ result }} m/s.", "Un {{ result }} más que la media."],
-            "Bastion": ["Jugador con más tiempo en fondo de pista.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
-            "Vanguardia": ["Jugador con más tiempo en red.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
+            "Nube": ["Jugador mas globero.", "{{ result }} globos registrados.", "Un {{ result }} más que el segundo."],
+            "Trueno": ["Jugador con mas smashes.", "{{ result }} smashes registrados.", "Un {{ result }} más que el segundo."],
+            "Destello": ["Smash mas veloz del partido.", "Una velocidad de {{ result }} m/s.", "Un {{ result }} más que la media."],
+            "Bastion": ["Jugador con mas tiempo en fondo de pista.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
+            "Vanguardia": ["Jugador con mas tiempo en red.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
             "Nevera": ["Jugador que menos bolas ha recibido.", "{{ result }} de bolas registradas.", "Un {{ result }} menos que el segundo."],
-            "Iman": ["Jugador que más bolas ha recibido.", "{{ result }} de bolas registradas.", "Un {{ result }} más que el segundo."],
-            "Obsesivo": ["Jugador que más bolas ha lanzado a un mismo rival.", "{{ result }} de bolas registradas hacia {{ result2 }}.", "Un {{ result }} más que a su compañero."],
-            "Pulpo": ["Jugador con mayor equilibrio en derecha y revés.", "{{ result }} de derechas.", "Un {{ result }} menos que el segundo."],
-            "Hipopotamo": ["Jugador más territorial.", "{{ result }} de campo abarcado.", "Un {{ result }} más que su compañero."]
+            "Iman": ["Jugador que mas bolas ha recibido.", "{{ result }} de bolas registradas.", "Un {{ result }} más que el segundo."],
+            "Obsesivo": ["Jugador que mas bolas ha lanzado a un mismo rival.", "{{ result }} de bolas registradas hacia {{ result2 }}.", "Un {{ result }} más que a su compañero."],
+            "Pulpo": ["Jugador con mayor equilibrio en derecha y reves.", "{{ result }} de derechas.", "Un {{ result }} menos que el segundo."],
+            "Hipopotamo": ["Jugador mas territorial.", "{{ result }} de campo abarcado.", "Un {{ result }} más que su compañero."]
         }
 
     #########################################################
@@ -220,11 +220,13 @@ class GameStats:
         categories = {}
         for player in self.game.player_templates:
             r, l = self.rights_and_backhands(player.tag)
-            categories[player.tag] = {Category.SMASH: 0, Category.LOW_VOLLEY: 0, 'left': l, 'right': r}
+            r = int(r*100/(r+l))
+            l = 100 - r
+            categories[player.tag] = {Category.SMASH: 0, Category.FULL_GLOBE: 0, 'left': l, 'right': r}
 
         for shot in self.get_shots():
             if shot.striker is not None:
-                if shot.category is Category.SMASH or shot.category is Category.LOW_VOLLEY:
+                if shot.category is Category.SMASH or shot.category is Category.FULL_GLOBE:
                     categories[shot.striker.tag][shot.category] += 1
 
         return categories

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fondo de Página con Imagen en Esquina</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* Prevents scrolling due to overflow */
+        }
+
+        .background-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Hides any part of the img that exceeds the container size */
+        }
+
+        .background-image {
+            position: absolute;
+            min-width: 100%;
+            min-height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: auto;
+            height: auto;
+            max-width: none;
+        }
+
+        /* Default styles for player images */
+        /* Default styles for player images */
+        .player {
+            position: absolute;
+            width: 4.5vw; /* Previously 280px */
+            border: 10px solid; /* You may adjust this as needed */
+        }
+
+        /* Specific player styles */
+        .player-1 {
+            bottom: 59vh;
+            right: 56.15vw;
+            border-color: #cfdb46;
+        }
+        .player-2 {
+            bottom: 59vh;
+            right: 39vw;
+            border-color: #db9a46;
+        }
+        .player-3 {
+            bottom: 40vh;
+            right: 59.9vw;
+            width: 8vw; /* Previously 525px */
+            border-color: #db46cc;
+        }
+        .player-4 {
+            bottom: 40vh;
+            right: 31.55vw;
+            width: 8vw;
+            border-color: #db4646;
+        }
+
+
+        
+
+        .content {
+            position: absolute;
+            top: 87%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #174779;
+            text-shadow: 2px 2px 4px #000000;
+            font-family: 'CooperHewittBoldItalic', sans-serif;
+            font-size: 2vw;
+            font-weight: bold;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-container">
+        <img src="/home/juliofgx/PycharmProjects/PadelClips/resources/images/players_in_field/players_in_field_0.png" alt="Background Image" class="background-image">
+        <img src="../images/player.png" alt="Player Image" class="player player-1">
+        <img src="../images/player.png" alt="Player Image" class="player player-2">
+        <img src="../images/player.png" alt="Player Image" class="player player-3">
+        <img src="../images/player.png" alt="Player Image" class="player player-4">
+        <div class="content">
+            <h1>JUGADORES</h1>
+        </div>
+    </div>
+</body>
+</html>
+

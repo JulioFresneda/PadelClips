@@ -6,8 +6,8 @@ from padelClipsPackage.Frame import Frame
 from padelClipsPackage.Frame import Label
 from padelClipsPackage.Game import Game
 import numpy as np
-
-
+import pickle
+import _pickle as cPickle
 from padelClipsPackage.ComposeVideo import points_to_json, json_points_to_video, ComposeVideo
 
 ball_excel = "/home/juliofgx/PycharmProjects/PadelClips/dataset/padel_pove/1set/ball_inference.xlsx"
@@ -31,7 +31,14 @@ def get_player_features(tag):
 player_features_dict = {str(int(key)): player_features[key] for key in player_features.files}
 
 #game = Game(frames, fps, player_features_dict, start=start, end=end)
-game = Game(frames, fps, player_features_dict)
+#game = Game(frames, fps, player_features_dict)
+#with open('game.pkl', 'wb') as file:
+#    pickle.dump(game, file, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+with open('game.pkl', 'rb') as file:
+    game = pickle.load(file)
+    #game = cPickle.load(file)
 
 output_path = '/home/juliofgx/PycharmProjects/PadelClips/output.mp4'
 video = ComposeVideo(game, making_path, resources_path, video_path, output_path)

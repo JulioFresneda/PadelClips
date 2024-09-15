@@ -70,6 +70,14 @@ def crop_and_save_image(input_image_path, output_image_path, x, y, height, width
     # Perform the crop
     cropped_image = image.crop((left, upper, right, lower))
 
+    cropped_width, cropped_height = cropped_image.size
+    aspect_ratio = cropped_height / cropped_width
+
+    # Resize the image to 300px width and proportional height
+    new_width = 300
+    new_height = int(new_width * aspect_ratio)
+    cropped_image = cropped_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
     # Save the cropped image
     cropped_image.save(output_image_path)
 def video_to_frames(video_path, output_folder, start = 0, limit = None, steps = 10, real_count=False):

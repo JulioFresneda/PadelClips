@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fondo de Página con Imagen en Esquina</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* Prevents scrolling due to overflow */
+        }
+
+        .background-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Hides any part of the img that exceeds the container size */
+        }
+
+        .background-image {
+            position: absolute;
+            min-width: 100%;
+            min-height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: auto;
+            height: auto;
+            max-width: none;
+        }
+
+        .base {
+            width: 16vw;
+            position: absolute;
+            bottom: 18vh;
+            right: 76.2vw;
+            border-color: #db9a46;
+        }        
+
+        .player {
+            width: 10vw;
+            position: absolute;
+            border: 10px solid;
+            bottom: 28vh;
+            right: 78.9vw;
+            border-color: BORDER_COLOR;
+        }
+        
+        
+
+        .heatmap-player {
+            position: absolute;
+            bottom: -13.5%;
+            right: 33.85%;
+            border: 10px solid black;
+            transform: scale(0.58); /* Scales the element by 150% */
+            transform-origin: center;
+        }
+        .heatmap-player {
+            position: absolute;
+            bottom: -13.5%;
+            right: 33.85%;
+            border: 10px solid black;
+            transform: scale(0.58); /* Scales the element by 150% */
+            transform-origin: center;
+        }
+        .chart-player {
+            position: absolute;
+            bottom: 12vh;
+            right: 13vw;
+            width: 20vw;
+            
+        }
+
+        
+
+        /* Styling for the text around the chart */
+        .text-top, .text-bottom, .text-left, .text-right {
+            position: absolute;
+            color: white;
+            
+            font-size: 1.2vw;
+            line-height: 0.8em;
+            text-shadow: 2px 2px 4px #000000;
+        }
+
+        .text-top {
+            top: 37vh; /* Adjust as needed */
+            right: 13vw;
+            width: 20vw;
+            text-align: center;
+        }
+
+        .text-bottom {
+            top: 88vh; /* Adjust as needed */
+            right: 13vw;
+            width: 20vw;
+            text-align: center;
+        }
+
+        .text-left {
+            bottom: 26vh; /* Adjust as needed */
+            left: 60vw;
+            width: 6vw;
+            text-align: right;
+        }
+
+        .text-right {
+            bottom: 26vh; /* Adjust as needed */
+            left: 88vw;
+            width: 6vw;
+            text-align: left;
+        }
+
+        .content {
+            position: absolute;
+            top: 100%;
+            left: 100%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-shadow: 2px 2px 4px #000000;
+        }
+        .title {
+            position: absolute;
+            top: 11%;
+            left: 57%;
+            transform: translate(-50%, -50%);
+            color: #174779;
+            text-shadow: 2px 2px 4px #000000;
+            font-family: 'CooperHewittBoldItalic', sans-serif;
+            font-size: 1.5vw;
+            font-weight: bold;
+            font-style: italic;
+            text-align: left;
+            padding: 10px;
+        }
+        .data2 {
+            position: absolute;
+            top: 47%;
+            left: 70%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-shadow: 2px 2px 4px #000000;
+            font-family: 'CooperHewittBoldItalic', sans-serif;
+            font-size: 1.1vw;
+            font-weight: bold;
+            font-style: italic;
+            text-align: right;
+            padding: 10px;
+        }
+        .data1 {
+            position: absolute;
+            top: 93%;
+            left: 70%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-shadow: 2px 2px 4px #000000;
+            font-family: 'CooperHewittBoldItalic', sans-serif;
+            font-size: 1.1vw;
+            font-weight: bold;
+            font-style: italic;
+            text-align: right;
+            padding: 10px;
+        }
+        .data3 {
+            position: absolute;
+            top: 75%;
+            left: 79%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-shadow: 2px 2px 4px #000000;
+            font-family: 'CooperHewittBoldItalic', sans-serif;
+            font-size: 1.1vw;
+            font-weight: bold;
+            font-style: italic;
+            text-align: right;
+            padding: 10px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="background-container">
+        <img src="/home/juliofgx/PycharmProjects/PadelClips/resources/images/heatmaps/heatmap_3_4.png" alt="Background Image" class="background-image">
+        <img src="PLAT_PATH" alt="Player Image" class="base">        
+        <img src="PLAYER_PATH" alt="Player Image" class="player">
+        <img src="HEATMAP_PATH" alt="Player Image" class="heatmap-player">
+        <img src="/home/juliofgx/PycharmProjects/PadelClips/resources/images/heatmaps/heatmap.png" alt="Player Image" class="heatmap">
+        
+        
+        <!-- Text around the chart -->
+        
+        
+        <div class="title">
+            <h1>{{ player_name }}</h1>
+        </div>
+        <div class="data1">
+            <h1>{{ data1 }}</h1>
+        </div>
+        <div class="data2">
+            <h1>{{ data2 }}</h1>
+        </div>
+        <div class="data3">
+            <h1>{{ data3 }}</h1>
+        </div>
+    </div>
+</body>
+</html>
+

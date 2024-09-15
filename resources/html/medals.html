@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fondo de Página con Imagen en Esquina</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* Prevents scrolling due to overflow */
+        }
+
+        .background-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Hides any part of the img that exceeds the container size */
+        }
+
+        .background-image {
+            position: absolute;
+            min-width: 100%;
+            min-height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: auto;
+            height: auto;
+            max-width: none;
+        }
+
+        
+     
+        .medal {
+            position: absolute;
+            bottom: 47.6%;
+            right: 36.85%;
+
+            transform: scale(1); /* Scales the element by 150% */
+            transform-origin: center;
+        }
+   
+
+        
+
+        .content {
+            position: absolute;
+            top: 100%;
+            left: 100%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-shadow: 2px 2px 4px #000000;
+        }
+        .title {
+            position: absolute;
+            top: 70%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #174779;
+            text-shadow: 2px 2px 4px #000000;
+            font-family: 'CooperHewittBoldItalic', sans-serif;
+            font-size: 1.7vw;
+            font-weight: bold;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+        .stats {
+            position: absolute;
+            top: 87.5%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #174779;
+            text-shadow: 2px 2px 4px #000000;
+            font-family: 'CooperHewittBoldItalic', sans-serif;
+            font-size: 1.2vw;
+            font-weight: bold;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+        .base {
+            width: 16vw;
+            position: absolute;
+            bottom: 40%;
+            right: 42%;
+            border-color: #db9a46;
+        }        
+
+        .player {
+            width: 10vw;
+            position: absolute;
+            border: 10px solid;
+            bottom: 50%;
+            right: 44.5%;
+            border-color: BORDER_COLOR;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="background-container">
+        <img src="/home/juliofgx/PycharmProjects/PadelClips/resources/images/medals_1.png" alt="Background Image" class="background-image">
+        <img src="/home/juliofgx/PycharmProjects/PadelClips/resources/images/medals/bastion.png" style="visibility: visible;" alt="Medal" class="medal">
+        <img src="PLAT_PATH" style="visibility: hidden;" alt="Player Image" class="base">        
+        <img src="PLAYER_PATH" style="visibility: hidden;" alt="Player Image" class="player">
+
+        
+        
+        <!-- Text around the chart -->
+        
+        
+        <div class="title">
+            <h1>{{ title }}</h1>
+        </div>
+        <div class='stats'><h1>{{ stats }}</h1></div>
+ 
+    </div>
+</body>
+</html>
+
