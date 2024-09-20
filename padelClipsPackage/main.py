@@ -40,5 +40,5 @@ with open('game.pkl', 'rb') as file:
     game = pickle.load(file)
     #game = cPickle.load(file)
 
-output_path = '/home/juliofgx/PycharmProjects/PadelClips/output.mp4'
+output_path = '/home/juliofgx/PycharmProjects/PadelClips'
 video = ComposeVideo(game, making_path, resources_path, video_path, output_path)

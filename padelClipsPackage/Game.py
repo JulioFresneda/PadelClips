@@ -12,6 +12,7 @@ from padelClipsPackage.Shot import Position, Shot
 from padelClipsPackage.TagAlgorithm import TagAlgorithm
 from padelClipsPackage.Visuals import Visuals
 import rust_functions
+from padelClipsPackage.aux import compute_homography, transform_coordinates
 
 
 # TODO
@@ -101,10 +102,21 @@ class Game:
         self.frames_controller.smooth_player_tags(player_pos, player_idx, len(self.frames_controller))
         self.load_players_boundaries()
 
+    def get_player_positions_scaled(self, tag):
+        perspective_points = [
+            (self.players_boundaries_horizontal[Position.BOTTOM]['left'], self.players_boundaries_vertical[Position.BOTTOM]),
+            (self.players_boundaries_horizontal[Position.BOTTOM]['right'], self.players_boundaries_vertical[Position.BOTTOM]),
+            (self.players_boundaries_horizontal[Position.TOP]['left'], self.players_boundaries_vertical[Position.TOP]),
+            (self.players_boundaries_horizontal[Position.TOP]['right'], self.players_boundaries_vertical[Position.TOP])
+        ]
 
+        real_world_points = [(0, 1), (1, 1), (0, 0), (1, 0)]
+        H = compute_homography(perspective_points, real_world_points)
 
+        player_coords = self.frames_controller.get_player_positions(tag)
+        transformed_coords = transform_coordinates(H, player_coords)
 
-
+        return transformed_coords
 
 
 
@@ -137,7 +149,7 @@ class Game:
         self.load_players_boundaries()
 
 
-    def get_pos_and_idx(self):
+    def get_pos_and_idx(self, foot=False):
 
         positions = {}
         index = {}
@@ -147,7 +159,10 @@ class Game:
 
         for frame in self.frames_controller.frame_list:
             for player in frame.players():
-                positions[player.tag].append((player.x, player.y))
+                if not foot:
+                    positions[player.tag].append((player.x, player.y))
+                else:
+                    positions[player.tag].append((player.x, player.get_foot()))
                 index[player.tag].append(frame.frame_number)
 
         return positions, index

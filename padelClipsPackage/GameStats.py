@@ -25,18 +25,6 @@ class GameStats:
             "Pulpo": self.pulpo(),
             "Hipopotamo": self.hipopotamo()
         }
-        self.medals_descriptions = {
-            "Nube": ["Jugador mas globero.", "{{ result }} globos registrados.", "Un {{ result }} más que el segundo."],
-            "Trueno": ["Jugador con mas smashes.", "{{ result }} smashes registrados.", "Un {{ result }} más que el segundo."],
-            "Destello": ["Smash mas veloz del partido.", "Una velocidad de {{ result }} m/s.", "Un {{ result }} más que la media."],
-            "Bastion": ["Jugador con mas tiempo en fondo de pista.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
-            "Vanguardia": ["Jugador con mas tiempo en red.", "{{ result }} minutos registrados.", "Un {{ result }} más que el segundo."],
-            "Nevera": ["Jugador que menos bolas ha recibido.", "{{ result }} de bolas registradas.", "Un {{ result }} menos que el segundo."],
-            "Iman": ["Jugador que mas bolas ha recibido.", "{{ result }} de bolas registradas.", "Un {{ result }} más que el segundo."],
-            "Obsesivo": ["Jugador que mas bolas ha lanzado a un mismo rival.", "{{ result }} de bolas registradas hacia {{ result2 }}.", "Un {{ result }} más que a su compañero."],
-            "Pulpo": ["Jugador con mayor equilibrio en derecha y reves.", "{{ result }} de derechas.", "Un {{ result }} menos que el segundo."],
-            "Hipopotamo": ["Jugador mas territorial.", "{{ result }} de campo abarcado.", "Un {{ result }} más que su compañero."]
-        }
 
     #########################################################
     # WELCOME TO THE AWESOME GAME AWARDS AND GAME STATS!
@@ -66,7 +54,6 @@ class GameStats:
     #   -   Trofeo de polivalencia - Pareja donde los jugadores cambian mas de posicion
     #
 
-
     def get_medals(self, tag):
         medals = {}
         for name, winner in self.medals.items():
@@ -75,6 +62,24 @@ class GameStats:
 
         return medals
 
+    def get_medal_description(self, medal, data, alias):
+        medals_descriptions = {
+            "Nube": f"Jugador mas globero: {data} globos registrados.",
+            "Trueno": f"Jugador con mas smashes: {data} smashes registrados.",
+            "Destello": f"Smash mas veloz del partido: {data} m/s.",
+            "Bastion": f"Jugador con mas tiempo en fondo de pista: {data}% del total.",
+            "Vanguardia": f"Jugador con mas tiempo en red: {data}% del total.",
+            "Nevera": f"Jugador que menos bolas ha recibido: {data} bolas registradas.",
+            "Iman": f"Jugador que mas bolas ha recibido: {data} bolas registradas.",
+
+            "Pulpo": f"Jugador mas ambidiestro: {data}% de golpes con la izquierda",
+            "Hipopotamo": f"Jugador mas territorial. STD de {data}."
+        }
+        try:
+            medals_descriptions["Obsesivo"] = f"Mas bolas a un mismo rival: {data[1]} para {alias[data[0]]}."
+        except:
+            pass
+        return medals_descriptions[medal]
 
     def print_game_stats(self):
         print("------- WELCOME TO THE AWESOME GAME AWARDS AND GAME STATS! -------")
@@ -126,28 +131,25 @@ class GameStats:
         print("Por programar")
 
     def hipopotamo(self):
-        positions = {}
-        for player in self.game.player_templates:
-            positions[player.tag] = []
-        for frame in self.game.frames_controller.frame_list:
-            for player in frame.players():
-                left = self.game.players_boundaries_horizontal[player.position]['left']
-                right = self.game.players_boundaries_horizontal[player.position]['right']
-                pos = self.scale_position(player.x, left, right)
-                positions[player.tag].append(pos)
+        data = self.bastion_vanguardia_hipopotamo()
 
-        variances = []
-        for player, positions in positions.items():
-            variances.append((player, np.std(positions)))
-
-        return sorted(variances, key=lambda p: p[1])[-1]
+        winner_tag, winner_var = sorted(data.items(), key=lambda p: p[1]['lado'])[-1]
+        winner_var = round(winner_var['lado'], 1)  #10m de ancho
+        return winner_tag, winner_var
 
     def pulpo(self):
         players_ordered = []
+        players_l_r = {}
         for player in self.game.player_templates:
             r, l = self.rights_and_backhands(player.tag)
             players_ordered.append((player.tag, abs(l - r)))
-        return sorted(players_ordered, key=lambda p: p[1])[0]
+            players_l_r[player.tag] = (r, l)
+
+        winner_tag, x = sorted(players_ordered, key=lambda p: p[1])[0]
+
+        l, r = players_l_r[winner_tag]
+
+        return winner_tag, int(l * 100 / (l + r))
 
     def scale_position(self, x, a, b):
         return abs((x - a) / (b - a))
@@ -174,13 +176,68 @@ class GameStats:
         winner = count_shots_by_player[0]
         return (winner[0][0], (winner[0][1], winner[1]))
 
+    def bastion_vanguardia_hipopotamo(self):
+
+        def calculate_percentage_near_point(coordinates, target, threshold=0.15, vertical=True):
+            # Count how many times the object is near the target point vertically
+            count_near = 0
+            total_frames = len(coordinates)
+
+            for x, y in coordinates:
+                # Check if the vertical distance is within the threshold
+                if vertical:
+                    if abs(y - target) <= threshold:
+                        count_near += 1
+                else:
+                    if abs(x - target) <= threshold:
+                        count_near += 1
+
+            # Calculate percentage
+            percentage_near = (count_near / total_frames) * 100
+            return int(percentage_near)
+
+        data = {}
+        for player in self.game.player_templates:
+
+            data[player.tag] = {}
+
+            pos_data = self.game.get_player_positions_scaled(player.tag)
+
+            if player.position is Position.TOP:
+                # fondo = self.game.players_boundaries_vertical[Position.TOP]
+                fondo = 0
+            else:
+                # fondo = self.game.players_boundaries_vertical[Position.BOTTOM]
+                fondo = 1
+
+            data[player.tag]['fondo'] = calculate_percentage_near_point(pos_data, fondo)
+            data[player.tag]['red'] = calculate_percentage_near_point(pos_data, threshold=0.25, target=0.5)
+
+            mean_x = sum([pos[0] for pos in pos_data]) / len(pos_data)
+            if mean_x < 0.5:
+                data[player.tag]['lado'] = calculate_percentage_near_point(pos_data, 0.75, threshold=0.25,
+                                                                           vertical=False)
+            else:
+                data[player.tag]['lado'] = calculate_percentage_near_point(pos_data, 0.25, threshold=0.25,
+                                                                           vertical=False)
+
+            if sum([perc for perc in data[player.tag].values()]) > 100:
+                data[player.tag]['lado'] = 100 - data[player.tag]['fondo'] - data[player.tag]['red']
+        return data
+
     def bastion(self):
-        distances = self.player_distances_to_the_net()
-        return distances[-1]
+        data = self.bastion_vanguardia_hipopotamo()
+
+        winner_tag, winner_var = sorted(data.items(), key=lambda p: p[1]['fondo'])[-1]
+        winner_var = round(winner_var['fondo'], 1)  # 10m de ancho
+        return winner_tag, winner_var
 
     def vanguardia(self):
-        distances = self.player_distances_to_the_net()
-        return distances[0]
+        data = self.bastion_vanguardia_hipopotamo()
+
+        winner_tag, winner_var = sorted(data.items(), key=lambda p: p[1]['red'])[-1]
+        winner_var = round(winner_var['red'], 1)  # 10m de ancho
+        return winner_tag, winner_var
 
     def nube(self):
         return self.get_player_most_shots(Category.FULL_GLOBE)[0]
@@ -195,11 +252,13 @@ class GameStats:
 
         for shot in shots:
             if shot.category is Category.SMASH:
-                vel = PositionInFrame.speed_list(shot.pifs, scale=100)
+                vel = PositionInFrame.speed_list(shot.pifs, scale=1)
+                vel = vel * 60 * 20
+
                 if fastest_vel > vel:
                     fastest_shot = shot
                     fastest_vel = vel
-        return (shot.striker.tag, (fastest_shot, fastest_vel))
+        return (shot.striker.tag, round(fastest_vel), 2)
 
     def get_player_most_shots(self, category=None):
         shots = self.get_shots()
@@ -220,7 +279,7 @@ class GameStats:
         categories = {}
         for player in self.game.player_templates:
             r, l = self.rights_and_backhands(player.tag)
-            r = int(r*100/(r+l))
+            r = int(r * 100 / (r + l))
             l = 100 - r
             categories[player.tag] = {Category.SMASH: 0, Category.FULL_GLOBE: 0, 'left': l, 'right': r}
 
@@ -231,15 +290,25 @@ class GameStats:
 
         return categories
 
-
-
-
     def get_shots(self):
         shots = []
         for point in self.points:
             for shot in point.shots:
                 shots.append(shot)
         return shots
+
+    def top_x_minutes(self, minutes):
+        points = []
+        all_points = sorted(self.points, key=lambda p: p.duration(), reverse=False)
+        counter = 0
+        while(counter < minutes*60*60 and len(all_points) > 0): # minutes * seconds * fps
+            points.append(all_points.pop())
+            counter += points[-1].duration()
+
+        return sorted(points, key=lambda p:p.start())
+
+
+
 
     def top_x_longest_points(self, x):
         top = sorted(self.points, key=lambda p: p.duration(), reverse=True)
@@ -353,6 +422,24 @@ class GameStats:
         for player in self.game.player_templates:
             distances[player.tag] = self.average_player_distance_to_the_net(player.tag)
         return sorted(distances.items(), key=lambda item: item[1])
+
+    def calculate_percentage_near_point(self, coordinates, target, threshold=0.15, vertical=True):
+        # Count how many times the object is near the target point vertically
+        count_near = 0
+        total_frames = len(coordinates)
+
+        for x, y in coordinates:
+            # Check if the vertical distance is within the threshold
+            if vertical:
+                if abs(y - target) <= threshold:
+                    count_near += 1
+            else:
+                if abs(x - target) <= threshold:
+                    count_near += 1
+
+        # Calculate percentage
+        percentage_near = (count_near / total_frames) * 100
+        return int(percentage_near)
 
     def average_player_distance_to_the_net(self, player_tag):
         total_distance = 0.0

@@ -335,3 +335,48 @@ def format_seconds(frame_number, fps):
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+
+import cv2
+import numpy as np
+
+
+def compute_homography(perspective_points, real_world_points):
+    """
+    Compute the homography matrix.
+
+    :param perspective_points: A list of four (x, y) tuples corresponding to points in the perspective view.
+    :param real_world_points: A list of four (x, y) tuples corresponding to points in the top-down view.
+    :return: Homography matrix H.
+    """
+    # Convert points to numpy arrays of shape (4, 2)
+    perspective_points = np.array(perspective_points, dtype='float32')
+    real_world_points = np.array(real_world_points, dtype='float32')
+
+    # Compute the homography matrix
+    H, _ = cv2.findHomography(perspective_points, real_world_points)
+
+    return H
+
+
+def transform_coordinates(H, coordinates):
+    """
+    Apply the homography matrix to transform coordinates.
+
+    :param H: The homography matrix.
+    :param coordinates: A list of (x, y) tuples of player coordinates in the perspective view.
+    :return: A list of transformed (x, y) coordinates in the top-down view.
+    """
+    # Convert coordinates to homogeneous form (add a third dimension of 1)
+    coords_homogeneous = np.array([[x, y, 1] for x, y in coordinates], dtype='float32').T
+
+    # Apply the homography matrix
+    transformed_coords_homogeneous = np.dot(H, coords_homogeneous)
+
+    # Convert back from homogeneous coordinates to (x, y)
+    transformed_coords = transformed_coords_homogeneous[:2] / transformed_coords_homogeneous[2]
+
+    # Transpose to get the original shape back
+    transformed_coords = transformed_coords.T
+
+    return transformed_coords

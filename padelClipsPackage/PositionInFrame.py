@@ -29,6 +29,7 @@ class PositionInFrame:
 
         return sum(speeds)/len(speeds)
 
+
     @staticmethod
     def ax(p1, p2, p3):
         vx1 = PositionInFrame.vx(p1, p2)
